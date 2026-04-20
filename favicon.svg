@@ -1,0 +1,11 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="180" height="180" fill="white"/>
+  <!-- Teal base strip -->
+  <rect x="0" y="136" width="180" height="44" fill="#3DF5DC"/>
+  <!-- House body -->
+  <rect x="28" y="92" width="124" height="60" fill="#333333"/>
+  <!-- Roof -->
+  <polygon points="90,18 164,92 16,92" fill="#333333"/>
+  <!-- Door arch (white cutout) -->
+  <path d="M70 152 L70 116 Q70 100 90 100 Q110 100 110 116 L110 152 Z" fill="#3DF5DC"/>
+</svg>

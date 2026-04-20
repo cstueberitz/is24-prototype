@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IS24 – Search connected with AI-Agents</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;}
+
+.phone-stage{
+  display:flex;align-items:center;justify-content:center;
+  width:100vw;height:100vh;
+}
+.phone-frame{
+  width:390px;height:844px;
+  background:#fff;border-radius:44px;
+  box-shadow:0 0 0 8px #2c2c2c,0 0 0 10px #3a3a3a,0 30px 100px rgba(0,0,0,0.7);
+  overflow:hidden;position:relative;
+  transform-origin:center center;
+  flex-shrink:0;
+}
+
+@keyframes heyimmo-ring-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+@keyframes heyimmo-breathe{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.13);opacity:.85;}}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+@keyframes sunrise-breathe{0%,100%{opacity:.80;}50%{opacity:.95;}}
+@keyframes dot-pulse{0%,100%{opacity:.25;transform:scale(.75);}50%{opacity:1;transform:scale(1);}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+@keyframes textShimmer{
+  0%   { background-position: 300% center; }
+  100% { background-position: -50% center; }
+}
+.shimmer-text{
+  background: linear-gradient(90deg,
+    #292526 0%,
+    #292526 30%,
+    #aaaaaa 50%,
+    #292526 70%,
+    #292526 100%);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: textShimmer 1s cubic-bezier(.4,0,.2,1) forwards;
+}
+
+@keyframes slideInRight{from{transform:translateX(100%);}to{transform:translateX(0);}}
+@keyframes slideOutLeft{from{transform:translateX(0);opacity:1;}to{transform:translateX(-25%);opacity:.6;}}
+@keyframes slideInLeft{from{transform:translateX(-25%);opacity:.6;}to{transform:translateX(0);opacity:1;}}
+@keyframes slideOutRight{from{transform:translateX(0);}to{transform:translateX(100%);}}
+@keyframes sheetIn{from{transform:translateY(100%);}to{transform:translateY(0);}}
+@keyframes sheetOut{from{transform:translateY(0);}to{transform:translateY(100%);}}
+
+.slide-in-right{animation:slideInRight .38s cubic-bezier(.28,1,.4,1) forwards;}
+.slide-out-left{animation:slideOutLeft .38s cubic-bezier(.28,1,.4,1) forwards;}
+.slide-in-left{animation:slideInLeft .38s cubic-bezier(.28,1,.4,1) forwards;}
+.slide-out-right{animation:slideOutRight .38s cubic-bezier(.28,1,.4,1) forwards;}
+.sheet-in{animation:sheetIn .4s cubic-bezier(.16,1,.3,1) forwards;}
+.sheet-out{animation:sheetOut .25s ease-in forwards;}
+
+button{-webkit-tap-highlight-color:transparent;}
+::-webkit-scrollbar{display:none;}
+</style>
+</head>
+<body>
+<div class="phone-stage">
+  <div class="phone-frame" id="root"></div>
+</div>
+<script>
+(function scalePhone() {
+  const frame = document.querySelector('.phone-frame');
+  if (!frame) return;
+  const scale = Math.min(window.innerWidth / 410, window.innerHeight / 864, 1);
+  frame.style.transform = 'scale(' + scale + ')';
+  window.addEventListener('resize', scalePhone);
+})();
+</script>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ─── GRADIENT CONSTANT ─── */
+const AI_GRADIENT = `conic-gradient(from 90deg,#00FFD0 0%,#00FFD0 28.7%,#0FFEC3 30.9%,#1FFDB6 33.1%,#3DFC9C 37.4%,#5CFA82 41.8%,#7BF968 46.2%,#99F74E 50.6%,#B8F534 55%,#D6F41A 59.3%,#E6F30D 61.5%,#F5F200 63.7%,#FAC10B 81.9%,#FF9015 100%)`;
+
+/* ─── HEYIMMO ICON ─── */
+function HeyImmoIcon({ active=false, size=32 }) {
+  return (
+    <div style={{position:'relative',width:size,height:size,flexShrink:0,
+      animation:active?'heyimmo-breathe 2.2s ease-in-out infinite':'none',
+      willChange:'transform'}}>
+      <div style={{position:'absolute',inset:0,borderRadius:'50%',
+        filter:active?'blur(5px)':'blur(2px)',
+        background:AI_GRADIENT,
+        animation:active?'heyimmo-ring-spin 3s linear infinite':'none',
+        willChange:'transform'}}/>
+      <div style={{position:'absolute',
+        top:size*.094,left:size*.094,
+        width:size*.8125,height:size*.8125,
+        borderRadius:'50%',
+        background:'#fff',
+        display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMS42NjciIGhlaWdodD0iMTEuNjY3IiB2aWV3Qm94PSIwIDAgMTEuNjY3IDExLjY2NyIgZmlsbD0ibm9uZSI+CiAgPHBhdGggZD0iTSA0LjYyOSA3Ljg3NSBMIDUuMTk0IDcuNzMgTCA1LjE5NCA3LjcyOSBMIDQuNjI5IDcuODc1IFogTSAzLjc5MSA3LjAzNyBMIDMuOTM2IDYuNDcyIEwgMy45MzYgNi40NzIgTCAzLjc5MSA3LjAzNyBaIE0gMC4yMTIgNi4xMTQgTCAwLjA1MyA2LjY3NSBMIDAuMDY2IDYuNjc5IEwgMC4yMTIgNi4xMTQgWiBNIDAuMjEyIDUuNTUzIEwgMC4wNjYgNC45ODggTCAwLjA1MyA0Ljk5MiBMIDAuMjEyIDUuNTUzIFogTSAzLjc5MSA0LjYyOSBMIDMuNjQ1IDQuMDY1IEwgMy42NDUgNC4wNjUgTCAzLjc5MSA0LjYyOSBaIE0gNC42MjkgMy43OTIgTCA1LjE5NCAzLjkzOCBMIDUuMTk0IDMuOTM3IEwgNC42MjkgMy43OTIgWiBNIDUuNTUyIDAuMjEzIEwgNC45OSAwLjA1NiBMIDQuOTg3IDAuMDY3IEwgNS41NTIgMC4yMTMgWiBNIDYuMTE0IDAuMjEzIEwgNi42NzkgMC4wNjcgTCA2LjY3NSAwLjA1NiBMIDYuMTE0IDAuMjEzIFogTSA3LjAzNiAzLjc5MiBMIDYuNDcxIDMuOTM3IEwgNi40NzEgMy45MzggTCA3LjAzNiAzLjc5MiBaIE0gNy44NzQgNC42MyBMIDcuNzI4IDUuMTk1IEwgNy43MjkgNS4xOTUgTCA3Ljg3NCA0LjYzIFogTSAxMS40NTMgNS41NTIgTCAxMS42MDggNC45OSBMIDExLjU5OCA0Ljk4NyBMIDExLjQ1MyA1LjU1MiBaIE0gMTEuNDUzIDYuMTE1IEwgMTEuNTk4IDYuNjggTCAxMS42MDggNi42NzcgTCAxMS40NTMgNi4xMTUgWiBNIDcuODc0IDcuMDM3IEwgNy43MjkgNi40NzIgTCA3LjcyOCA2LjQ3MiBMIDcuODc0IDcuMDM3IFogTSA3LjAzNiA3Ljg3NSBMIDYuNDcxIDcuNzI5IEwgNi40NzEgNy43MjkgTCA3LjAzNiA3Ljg3NSBaIE0gNi4xMTMgMTEuNDU0IEwgNi42NzUgMTEuNjExIEwgNi42NzggMTEuNiBMIDYuMTEzIDExLjQ1NCBaIE0gNS41NTEgMTEuNDU0IEwgNC45ODYgMTEuNTk5IEwgNC45OSAxMS42MTEgTCA1LjU1MSAxMS40NTQgWiBNIDExLjA4MiAwLjU4MyBDIDExLjA4MiAwLjI2MSAxMC44MjEgMCAxMC40OTkgMCBDIDEwLjE3NyAwIDkuOTE2IDAuMjYxIDkuOTE2IDAuNTgzIEwgMTAuNDk5IDAuNTgzIEwgMTEuMDgyIDAuNTgzIFogTSA5LjkxNiAyLjkxNyBDIDkuOTE2IDMuMjM5IDEwLjE3NyAzLjUgMTAuNDk5IDMuNSBDIDEwLjgyMSAzLjUgMTEuMDgyIDMuMjM5IDExLjA4MiAyLjkxNyBMIDEwLjQ5OSAyLjkxNyBMIDkuOTE2IDIuOTE3IFogTSAxMS42NjYgMi4zMzMgQyAxMS45ODggMi4zMzMgMTIuMjQ5IDIuMDcyIDEyLjI0OSAxLjc1IEMgMTIuMjQ5IDEuNDI4IDExLjk4OCAxLjE2NyAxMS42NjYgMS4xNjcgTCAxMS42NjYgMS43NSBMIDExLjY2NiAyLjMzMyBaIE0gOS4zMzIgMS4xNjcgQyA5LjAxIDEuMTY3IDguNzQ5IDEuNDI4IDguNzQ5IDEuNzUgQyA4Ljc0OSAyLjA3MiA5LjAxIDIuMzMzIDkuMzMyIDIuMzMzIEwgOS4zMzIgMS43NSBMIDkuMzMyIDEuMTY3IFogTSAxLjc0OSA4Ljc1IEMgMS43NDkgOC40MjggMS40ODggOC4xNjcgMS4xNjYgOC4xNjcgQyAwLjg0NCA4LjE2NyAwLjU4MiA4LjQyOCAwLjU4MiA4Ljc1IEwgMS4xNjYgOC43NSBMIDEuNzQ5IDguNzUgWiBNIDAuNTgyIDkuOTE3IEMgMC41ODIgMTAuMjM5IDAuODQ0IDEwLjUgMS4xNjYgMTAuNSBDIDEuNDg4IDEwLjUgMS43NDkgMTAuMjM5IDEuNzQ5IDkuOTE3IEwgMS4xNjYgOS45MTcgTCAwLjU4MiA5LjkxNyBaIE0gMS43NDkgOS45MTcgQyAyLjA3MSA5LjkxNyAyLjMzMiA5LjY1NiAyLjMzMiA5LjMzMyBDIDIuMzMyIDkuMDExIDIuMDcxIDguNzUgMS43NDkgOC43NSBMIDEuNzQ5IDkuMzMzIEwgMS43NDkgOS45MTcgWiBNIDAuNTgyIDguNzUgQyAwLjI2IDguNzUgLTAuMDAxIDkuMDExIC0wLjAwMSA5LjMzMyBDIC0wLjAwMSA5LjY1NiAwLjI2IDkuOTE3IDAuNTgyIDkuOTE3IEwgMC41ODIgOS4zMzMgTCAwLjU4MiA4Ljc1IFogTSA0LjYyOSA3Ljg3NSBMIDUuMTk0IDcuNzI5IEMgNS4xMTYgNy40MjcgNC45NTggNy4xNSA0LjczNyA2LjkyOSBMIDQuMzI0IDcuMzQyIEwgMy45MTIgNy43NTQgQyAzLjk4NiA3LjgyOCA0LjAzOCA3LjkyIDQuMDY0IDguMDIxIEwgNC42MjkgNy44NzUgWiBNIDQuMzI0IDcuMzQyIEwgNC43MzcgNi45MjkgQyA0LjUxNiA2LjcwOCA0LjIzOSA2LjU1IDMuOTM2IDYuNDcyIEwgMy43OTEgNy4wMzcgTCAzLjY0NSA3LjYwMiBDIDMuNzQ2IDcuNjI4IDMuODM4IDcuNjggMy45MTIgNy43NTQgTCA0LjMyNCA3LjM0MiBaIE0gMy43OTEgNy4wMzcgTCAzLjkzNiA2LjQ3MiBMIDAuMzU4IDUuNTQ5IEwgMC4yMTIgNi4xMTQgTCAwLjA2NiA2LjY3OSBMIDMuNjQ1IDcuNjAyIEwgMy43OTEgNy4wMzcgWiBNIDAuMjEyIDYuMTE0IEwgMC4zNzEgNS41NTMgQyAwLjQzMiA1LjU3IDAuNDg2IDUuNjA3IDAuNTI0IDUuNjU4IEwgMC4wNTkgNi4wMDkgTCAtMC40MDYgNi4zNjEgQyAtMC4yOTIgNi41MTMgLTAuMTMgNi42MjMgMC4wNTMgNi42NzUgTCAwLjIxMiA2LjExNCBaIE0gMC4wNTkgNi4wMDkgTCAwLjUyNCA1LjY1OCBDIDAuNTYzIDUuNzA4IDAuNTgzIDUuNzcgMC41ODMgNS44MzMgTCAwIDUuODMzIEwgLTAuNTgzIDUuODMzIEMgLTAuNTgzIDYuMDI0IC0wLjUyMSA2LjIwOSAtMC40MDYgNi4zNjEgTCAwLjA1OSA2LjAwOSBaIE0gMCA1LjgzMyBMIDAuNTgzIDUuODMzIEMgMC41ODMgNS44OTcgMC41NjMgNS45NTkgMC41MjQgNi4wMDkgTCAwLjA1OSA1LjY1OCBMIC0wLjQwNiA1LjMwNiBDIC0wLjUyMSA1LjQ1OCAtMC41ODMgNS42NDMgLTAuNTgzIDUuODMzIEwgMCA1LjgzMyBaIE0gMC4wNTkgNS42NTggTCAwLjUyNCA2LjAwOSBDIDAuNDg2IDYuMDYgMC40MzIgNi4wOTcgMC4zNzEgNi4xMTQgTCAwLjIxMiA1LjU1MyBMIDAuMDUzIDQuOTkyIEMgLTAuMTMgNS4wNDQgLTAuMjkyIDUuMTU0IC0wLjQwNiA1LjMwNiBMIDAuMDU5IDUuNjU4IFogTSAwLjIxMiA1LjU1MyBMIDAuMzU4IDYuMTE4IEwgMy45MzcgNS4xOTQgTCAzLjc5MSA0LjYyOSBMIDMuNjQ1IDQuMDY1IEwgMC4wNjYgNC45ODggTCAwLjIxMiA1LjU1MyBaIE0gMy43OTEgNC42MjkgTCAzLjkzNiA1LjE5NCBDIDQuMjM5IDUuMTE2IDQuNTE1IDQuOTU5IDQuNzM3IDQuNzM4IEwgNC4zMjQgNC4zMjUgTCAzLjkxMiAzLjkxMiBDIDMuODM4IDMuOTg2IDMuNzQ2IDQuMDM5IDMuNjQ1IDQuMDY1IEwgMy43OTEgNC42MjkgWiBNIDQuMzI0IDQuMzI1IEwgNC43MzcgNC43MzggQyA0Ljk1OCA0LjUxNyA1LjExNiA0LjI0IDUuMTk0IDMuOTM4IEwgNC42MjkgMy43OTIgTCA0LjA2NCAzLjY0NiBDIDQuMDM4IDMuNzQ3IDMuOTg2IDMuODM5IDMuOTEyIDMuOTEyIEwgNC4zMjQgNC4zMjUgWiBNIDQuNjI5IDMuNzkyIEwgNS4xOTQgMy45MzcgTCA2LjExNyAwLjM1OSBMIDUuNTUyIDAuMjEzIEwgNC45ODcgMC4wNjcgTCA0LjA2NCAzLjY0NiBMIDQuNjI5IDMuNzkyIFogTSA1LjU1MiAwLjIxMyBMIDYuMTE0IDAuMzcgQyA2LjA5NiAwLjQzMiA2LjA2IDAuNDg2IDYuMDA5IDAuNTI0IEwgNS42NTYgMC4wNTkgTCA1LjMwNCAtMC40MDUgQyA1LjE1MiAtMC4yOSA1LjA0MiAtMC4xMjggNC45OSAwLjA1NiBMIDUuNTUyIDAuMjEzIFogTSA1LjY1NiAwLjA1OSBMIDYuMDA5IDAuNTI0IEMgNS45NTggMC41NjMgNS44OTYgMC41ODMgNS44MzMgMC41ODMgTCA1LjgzMyAwIEwgNS44MzMgLTAuNTgzIEMgNS42NDIgLTAuNTgzIDUuNDU2IC0wLjUyMSA1LjMwNCAtMC40MDUgTCA1LjY1NiAwLjA1OSBaIE0gNS44MzMgMCBMIDUuODMzIDAuNTgzIEMgNS43NjkgMC41ODMgNS43MDcgMC41NjMgNS42NTYgMC41MjQgTCA2LjAwOSAwLjA1OSBMIDYuMzYyIC0wLjQwNSBDIDYuMjA5IC0wLjUyMSA2LjAyNCAtMC41ODMgNS44MzMgLTAuNTgzIEwgNS44MzMgMCBaIE0gNi4wMDkgMC4wNTkgTCA1LjY1NiAwLjUyNCBDIDUuNjA2IDAuNDg2IDUuNTY5IDAuNDMyIDUuNTUyIDAuMzcgTCA2LjExNCAwLjIxMyBMIDYuNjc1IDAuMDU2IEMgNi42MjQgLTAuMTI4IDYuNTE0IC0wLjI5IDYuMzYyIC0wLjQwNSBMIDYuMDA5IDAuMDU5IFogTSA2LjExNCAwLjIxMyBMIDUuNTQ5IDAuMzU5IEwgNi40NzEgMy45MzcgTCA3LjAzNiAzLjc5MiBMIDcuNjAxIDMuNjQ2IEwgNi42NzggMC4wNjcgTCA2LjExNCAwLjIxMyBaIE0gNy4wMzYgMy43OTIgTCA2LjQ3MSAzLjkzOCBDIDYuNTQ5IDQuMjQgNi43MDcgNC41MTcgNi45MjggNC43MzggTCA3LjM0MSA0LjMyNSBMIDcuNzUzIDMuOTEzIEMgNy42NzkgMy44MzkgNy42MjcgMy43NDcgNy42MDEgMy42NDYgTCA3LjAzNiAzLjc5MiBaIE0gNy4zNDEgNC4zMjUgTCA2LjkyOCA0LjczOCBDIDcuMTQ5IDQuOTU5IDcuNDI2IDUuMTE3IDcuNzI4IDUuMTk1IEwgNy44NzQgNC42MyBMIDguMDIgNC4wNjUgQyA3LjkxOSA0LjAzOSA3LjgyNyAzLjk4NyA3Ljc1MyAzLjkxMyBMIDcuMzQxIDQuMzI1IFogTSA3Ljg3NCA0LjYzIEwgNy43MjkgNS4xOTUgTCAxMS4zMDcgNi4xMTcgTCAxMS40NTMgNS41NTIgTCAxMS41OTggNC45ODcgTCA4LjAyIDQuMDY1IEwgNy44NzQgNC42MyBaIE0gMTEuNDUzIDUuNTUyIEwgMTEuMjk4IDYuMTE1IEMgMTEuMjM2IDYuMDk4IDExLjE4MiA2LjA2MSAxMS4xNDMgNi4wMSBMIDExLjYwNyA1LjY1NyBMIDEyLjA3MSA1LjMwMyBDIDExLjk1NSA1LjE1MSAxMS43OTMgNS4wNDEgMTEuNjA4IDQuOTkgTCAxMS40NTMgNS41NTIgWiBNIDExLjYwNyA1LjY1NyBMIDExLjE0MyA2LjAxIEMgMTEuMTA1IDUuOTU5IDExLjA4NCA1Ljg5NyAxMS4wODQgNS44MzMgTCAxMS42NjcgNS44MzMgTCAxMi4yNSA1LjgzMyBDIDEyLjI1IDUuNjQyIDEyLjE4NyA1LjQ1NiAxMi4wNzEgNS4zMDMgTCAxMS42MDcgNS42NTcgWiBNIDExLjY2NyA1LjgzMyBMIDExLjA4NCA1LjgzMyBDIDExLjA4NCA1Ljc3IDExLjEwNSA1LjcwOCAxMS4xNDMgNS42NTcgTCAxMS42MDcgNi4wMSBMIDEyLjA3MSA2LjM2NCBDIDEyLjE4NyA2LjIxMSAxMi4yNSA2LjAyNSAxMi4yNSA1LjgzMyBMIDExLjY2NyA1LjgzMyBaIE0gMTEuNjA3IDYuMDEgTCAxMS4xNDMgNS42NTcgQyAxMS4xODIgNS42MDYgMTEuMjM2IDUuNTY5IDExLjI5OCA1LjU1MiBMIDExLjQ1MyA2LjExNSBMIDExLjYwOCA2LjY3NyBDIDExLjc5MyA2LjYyNiAxMS45NTUgNi41MTYgMTIuMDcxIDYuMzY0IEwgMTEuNjA3IDYuMDEgWiBNIDExLjQ1MyA2LjExNSBMIDExLjMwNyA1LjU1IEwgNy43MjkgNi40NzIgTCA3Ljg3NCA3LjAzNyBMIDguMDIgNy42MDIgTCAxMS41OTggNi42OCBMIDExLjQ1MyA2LjExNSBaIE0gNy44NzQgNy4wMzcgTCA3LjcyOCA2LjQ3MiBDIDcuNDI2IDYuNTUgNy4xNDkgNi43MDggNi45MjggNi45MjkgTCA3LjM0MSA3LjM0MiBMIDcuNzUzIDcuNzU0IEMgNy44MjcgNy42OCA3LjkxOSA3LjYyOCA4LjAyIDcuNjAyIEwgNy44NzQgNy4wMzcgWiBNIDcuMzQxIDcuMzQyIEwgNi45MjggNi45MjkgQyA2LjcwNyA3LjE1IDYuNTQ5IDcuNDI3IDYuNDcxIDcuNzI5IEwgNy4wMzYgNy44NzUgTCA3LjYwMSA4LjAyMSBDIDcuNjI3IDcuOTIgNy42NzkgNy44MjggNy43NTMgNy43NTQgTCA3LjM0MSA3LjM0MiBaIE0gNy4wMzYgNy44NzUgTCA2LjQ3MSA3LjcyOSBMIDUuNTQ4IDExLjMwOCBMIDYuMTEzIDExLjQ1NCBMIDYuNjc4IDExLjYgTCA3LjYwMSA4LjAyMSBMIDcuMDM2IDcuODc1IFogTSA2LjExMyAxMS40NTQgTCA1LjU1MSAxMS4yOTcgQyA1LjU2OCAxMS4yMzUgNS42MDUgMTEuMTgxIDUuNjU2IDExLjE0MyBMIDYuMDA4IDExLjYwOCBMIDYuMzYxIDEyLjA3MiBDIDYuNTEzIDExLjk1NyA2LjYyMyAxMS43OTUgNi42NzUgMTEuNjExIEwgNi4xMTMgMTEuNDU0IFogTSA2LjAwOCAxMS42MDggTCA1LjY1NiAxMS4xNDMgQyA1LjcwNyAxMS4xMDQgNS43NjggMTEuMDg0IDUuODMyIDExLjA4NCBMIDUuODMyIDExLjY2NyBMIDUuODMyIDEyLjI1IEMgNi4wMjMgMTIuMjUgNi4yMDkgMTIuMTg4IDYuMzYxIDEyLjA3MiBMIDYuMDA4IDExLjYwOCBaIE0gNS44MzIgMTEuNjY3IEwgNS44MzIgMTEuMDg0IEMgNS44OTYgMTEuMDg0IDUuOTU4IDExLjEwNCA2LjAwOCAxMS4xNDMgTCA1LjY1NiAxMS42MDggTCA1LjMwMyAxMi4wNzIgQyA1LjQ1NSAxMi4xODggNS42NDEgMTIuMjUgNS44MzIgMTIuMjUgTCA1LjgzMiAxMS42NjcgWiBNIDUuNjU2IDExLjYwOCBMIDYuMDA4IDExLjE0MyBDIDYuMDU5IDExLjE4MSA2LjA5NiAxMS4yMzUgNi4xMTMgMTEuMjk3IEwgNS41NTEgMTEuNDU0IEwgNC45OSAxMS42MTEgQyA1LjA0MSAxMS43OTUgNS4xNTEgMTEuOTU3IDUuMzAzIDEyLjA3MiBMIDUuNjU2IDExLjYwOCBaIE0gNS41NTEgMTEuNDU0IEwgNi4xMTYgMTEuMzA4IEwgNS4xOTQgNy43MyBMIDQuNjI5IDcuODc1IEwgNC4wNjQgOC4wMjEgTCA0Ljk4NiAxMS41OTkgTCA1LjU1MSAxMS40NTQgWiBNIDEwLjQ5OSAwLjU4MyBMIDkuOTE2IDAuNTgzIEwgOS45MTYgMi45MTcgTCAxMC40OTkgMi45MTcgTCAxMS4wODIgMi45MTcgTCAxMS4wODIgMC41ODMgTCAxMC40OTkgMC41ODMgWiBNIDExLjY2NiAxLjc1IEwgMTEuNjY2IDEuMTY3IEwgOS4zMzIgMS4xNjcgTCA5LjMzMiAxLjc1IEwgOS4zMzIgMi4zMzMgTCAxMS42NjYgMi4zMzMgTCAxMS42NjYgMS43NSBaIE0gMS4xNjYgOC43NSBMIDAuNTgyIDguNzUgTCAwLjU4MiA5LjkxNyBMIDEuMTY2IDkuOTE3IEwgMS43NDkgOS45MTcgTCAxLjc0OSA4Ljc1IEwgMS4xNjYgOC43NSBaIE0gMS43NDkgOS4zMzMgTCAxLjc0OSA4Ljc1IEwgMC41ODIgOC43NSBMIDAuNTgyIDkuMzMzIEwgMC41ODIgOS45MTcgTCAxLjc0OSA5LjkxNyBMIDEuNzQ5IDkuMzMzIFoiIGZpbGw9ImN1cnJlbnRDb2xvciIgZmlsbC1ydWxlPSJub256ZXJvIi8+Cjwvc3ZnPgo=" width={size*.52} height={size*.52}
+          style={{objectFit:'contain', filter:'brightness(0) saturate(100%) opacity(0.75)'}}
+          alt=""/>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SUNRISE TOP ─── */
+function SunriseTop() {
+  return (
+    <div style={{height:102,width:'100%',overflow:'hidden',position:'relative',flexShrink:0}}>
+      <div style={{
+        position:'absolute',
+        width:811,height:812,
+        left:'calc(50% - 405px)',top:-315,
+        borderRadius:'50%',
+        animation:'sunrise-breathe 4s ease-in-out infinite',
+        background:AI_GRADIENT,
+        filter:'blur(60px)',
+        willChange:'opacity'}}/>
+      {/* white mask circle to reveal only top arc */}
+      <div style={{
+        position:'absolute',
+        width:1189,height:1189,
+        left:'calc(50% - 594px)',top:54,
+        borderRadius:'50%',
+        background:'#fff'}}/>
+    </div>
+  );
+}
+
+/* ─── IS24 LOGO ─── */
+function IS24Logo() {
+  return <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjI0IiB2aWV3Qm94PSIwIDAgMTIwIDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNNDguMDg0OSAyNEw1My45NTU2IDYuNDhMMzguMzcxNCAwTDAuODg4Mjg5IDMuODExMjZMMS43MzgwNSAxMS41MzkyTDAgMTIuMDQ4TDIuMjg4MzkgMjMuNDkxMkwzNy4wNjc5IDIwLjU2MzJMNDguMDg0OSAyNFoiIGZpbGw9IiMzREY1REMiLz4KPHBhdGggZD0iTTExNi4zMjEgMTguMjNIMTE4LjExN1YxNS4zNjkySDEyMFYxMy44MTRIMTE4LjExN1YxMC4zNDg0TDExNi4zMzEgMTAuNzUxNlYxMy44MTRIMTEyLjQzVjEzLjc3NTZMMTE3LjQ4OSA1LjUwMDQzSDExNS40MTNMMTEwLjQ1MSAxMy43NTY0VjE1LjM2OTJIMTE2LjMyMVYxOC4yM1pNMTAxLjkxNSAxOC4yM0gxMTAuNDUxVjE2LjY3NDhIMTA0LjU1MVYxNi42MzY0QzEwNy43NjcgMTMuOTM4OCAxMDkuOTk3IDExLjgwNzYgMTA5Ljk5NyA5LjEwOTk5QzEwOS45OTcgNi44OTI0MyAxMDguNDAzIDUuMzA4NDMgMTA1LjkwMyA1LjMwODQzQzEwNC4zMTkgNS4zMDg0MyAxMDIuMzY5IDYuMTUzMjUgMTAxLjczMiA4LjcwNjhMMTAzLjQzMSA5LjEwMDQzQzEwMy44MDcgNy41MzU2MiAxMDQuODIxIDYuOTExNjkgMTA1LjkwMyA2LjkxMTY5QzEwNy4yNDUgNi45MTE2OSAxMDguMTYyIDcuODA0NDMgMTA4LjE2MiA5LjE5NjQzQzEwOC4xNjIgMTEuNTM4OCAxMDUuODA2IDEzLjM4MiAxMDEuOTE1IDE2Ljc5OTZWMTguMjNaTTk5LjQwNDggMTguMzY0NEM5OS45MjYgMTguMzY0NCAxMDAuMzg5IDE4LjMwNjggMTAwLjc1NyAxOC4yMjA0VjE2Ljc3MDhDMTAwLjQ1NyAxNi44NTcyIDEwMC4wODEgMTYuOTA1MiA5OS43MjI5IDE2LjkwNTJDOTguNzg2OCAxNi45MDUyIDk4LjEyMDIgMTYuNjQ2IDk4LjEyMDIgMTUuNTEzMlYxMC4xOTQ4SDEwMC43NTdWOC43NTQ4SDk4LjEyMDJWNS43Nzg4TDk2LjM0MzQgNi4xODE5OVY4Ljc1NDhIOTQuNjczNVYxMC4xOTQ4SDk2LjM0MzRWMTUuNzM0Qzk2LjM0MzQgMTcuNTQ4NCA5Ny40MTU0IDE4LjM2NDQgOTkuNDA0OCAxOC4zNjQ0Wk04OS40MDE0IDE4LjQyMkM5MC42Mzc2IDE4LjQyMiA5MS42MDI3IDE3Ljg4NDQgOTIuMTIzOSAxNy4wODc2SDkyLjE2MjlMOTIuMjc4NiAxOC4yM0g5My44MDQ2VjguNzU0OEg5Mi4wMjc3VjE0LjI1NTZDOTIuMDI3NyAxNi4xNTY0IDkwLjg2ODkgMTYuOTUzMiA4OS42MzI4IDE2Ljk1MzJDODguMzk3NCAxNi45NTMyIDg3LjY3MyAxNi4xNjYgODcuNjczIDE0LjYzOTZWOC43NTQ4SDg1Ljg5NjFWMTQuNzU0OEM4NS44OTYxIDE3LjE5MzIgODcuMTk5NSAxOC40MjIgODkuNDAxNCAxOC40MjJaTTc5LjkxOTMgMTYuOTA1MkM3OC4xMTQyIDE2LjkwNTIgNzcuMDEzMyAxNS41ODA0IDc3LjAxMzMgMTMuNDk3MkM3Ny4wMTMzIDExLjQxNCA3OC4xMTQyIDEwLjA3OTYgNzkuOTE5MyAxMC4wNzk2QzgxLjcyNTEgMTAuMDc5NiA4Mi44MTU5IDExLjQwNDQgODIuODE1OSAxMy40OTcyQzgyLjgxNTkgMTUuNTkwMSA4MS43MTU3IDE2LjkwNTIgNzkuOTE5MyAxNi45MDUyWk03OS45MTkzIDE4LjQyMkM4Mi44MDY1IDE4LjQyMiA4NC42ODk2IDE2LjIwNDQgODQuNjg5NiAxMy40OTcyQzg0LjY4OTYgMTAuNzkgODIuODA2NSA4LjU2MjggNzkuOTE5MyA4LjU2MjhDNzcuMDMyOCA4LjU2MjggNzUuMTQwMiAxMC43NjEyIDc1LjE0MDIgMTMuNDk3MkM3NS4xNDAyIDE2LjIzMzIgNzcuMDIyNyAxOC40MjIgNzkuOTE5MyAxOC40MjJaTTcwLjMxMjIgMTguNDIyQzcyLjQzNjYgMTguNDIyIDczLjg4NDYgMTcuMzE4IDc0LjYwODkgMTUuNzE0OEw3My4wMTU3IDE1LjA2MkM3Mi41NDI5IDE2LjIwNDQgNzEuNjA2IDE2LjkwNTIgNzAuMzEyMiAxNi45MDUyQzY4LjUwNjYgMTYuOTA1MiA2Ny40MDU4IDE1LjU4MDQgNjcuNDA1OCAxMy40OTcyQzY3LjQwNTggMTEuNDE0IDY4LjUwNjYgMTAuMDc5NiA3MC4yOTI5IDEwLjA3OTZDNzEuNTc3IDEwLjA3OTYgNzIuNDk0NSAxMC43NzA4IDcyLjk4NjggMTEuOTEzMkw3NC41NjA1IDExLjI0MTJDNzMuODM2MiA5LjY0NzYyIDcyLjMzOTggOC41NjI4IDcwLjI5MjkgOC41NjI4QzY3LjQxNTUgOC41NjI4IDY1LjUzMjYgMTAuNzYxMiA2NS41MzI2IDEzLjQ5NzJDNjUuNTMyNiAxNi4yMzMyIDY3LjQxNTUgMTguNDIyIDcwLjMxMjIgMTguNDIyWk02MC4yMTI0IDE4LjQxMjRDNjIuODI5IDE4LjQxMjQgNjQuNjE1NCAxNy4wMTA4IDY0LjYxNTQgMTQuNjEwOEM2NC42MTU0IDEyLjczODggNjMuNDQ3IDExLjgwNzYgNjEuNTE1OSAxMS4xOTMyTDU5Ljc2ODIgMTAuNjM2NEM1OC42NTc5IDEwLjI4MTIgNTcuODg1NCA5Ljg1ODggNTcuODg1NCA4LjcwNjhDNTcuODg1NCA3LjU1NDggNTguODEyNCA2Ljg4MjggNjAuMDA5NiA2Ljg4MjhDNjEuMjA2OSA2Ljg4MjggNjIuMjQwMSA3LjUxNjQzIDYzLjAwMjkgOC40MTg4TDY0LjI1ODEgNy4yNzY0M0M2My40MzczIDYuMjY4NDMgNjEuODE1MyA1LjMxNzk5IDYwLjAwOTYgNS4zMTc5OUM1Ny42ODI2IDUuMzE3OTkgNTYuMDMxNSA2Ljc2NzYyIDU2LjAzMTUgOC44MjE5OUM1Ni4wMzE1IDEwLjg3NjQgNTcuNDIxOSAxMS43NDA0IDU5LjI0NjggMTIuMzU0OEw2MC44NjkgMTIuOTAyQzYyLjE5MTggMTMuMzQzNiA2Mi43NDIxIDEzLjgxNCA2Mi43NDIxIDE0LjgwMjhDNjIuNzQyMSAxNi4wNyA2MS43NTczIDE2LjgzOCA2MC4yMDI4IDE2LjgzOEM1OC42NDgyIDE2LjgzOCA1Ny4zOTMgMTYuMDEyNCA1Ni41ODE5IDE0Ljc3NEw1NS4xNjI1IDE1LjgyMDRDNTYuMjUzNiAxNy41MTk2IDU4LjMxMDIgMTguNDEyNCA2MC4yMTI0IDE4LjQxMjRaTTQyLjk3NzEgMTYuOTA1MkM0NC43NzMxIDE2LjkwNTIgNDUuODczOCAxNS41ODA0IDQ1Ljg3MzggMTMuNDk3MkM0NS44NzM4IDExLjQxNCA0NC43NzMxIDEwLjA3OTYgNDIuOTc3MSAxMC4wNzk2QzQxLjE4MTIgMTAuMDc5NiA0MC4wNzA4IDExLjQwNDQgNDAuMDcwOCAxMy40OTcyQzQwLjA3MDggMTUuNTkwMSA0MS4xNzE1IDE2LjkwNTIgNDIuOTc3MSAxNi45MDUyWk00Mi45NzcxIDE4LjQyMkM0MC4wODA0IDE4LjQyMiAzOC4xOTc2IDE2LjIwNDQgMzguMTk3NiAxMy40OTcyQzM4LjE5NzYgMTAuNzkgNDAuMDgwNCA4LjU2MjggNDIuOTc3MSA4LjU2MjhDNDUuODczOCA4LjU2MjggNDcuNzQ3IDEwLjc2MTIgNDcuNzQ3IDEzLjQ5NzJDNDcuNzQ3IDE2LjIzMzIgNDUuODY0MSAxOC40MjIgNDIuOTc3MSAxOC40MjJaTTI0LjAzMjggMTguMjNWOC43NTQ4SDI1LjU3NzdMMjUuNjkzNiA5LjkwNjhIMjUuNzMyMkMyNi4xNzYzIDkuMTM4OCAyNy4xNDE5IDguNTYyOCAyOC4zMjk1IDguNTYyOEMyOS43MDA3IDguNTYyOCAzMC42NjYyIDkuMjE1NjIgMzEuMDcxOCAxMC4wNzk2SDMxLjExMDRDMzEuNjYwOCA5LjExOTYyIDMyLjYzNiA4LjU2MjggMzMuODgxNiA4LjU2MjhDMzUuODcwNiA4LjU2MjggMzcuMDM4OSA5LjczMzk5IDM3LjAzODkgMTEuOTQyVjE4LjIzSDM1LjI2MjNWMTIuMDg2QzM1LjI2MjMgMTAuNjg0NCAzNC41MzgxIDEwLjAzMTYgMzMuNDQ3IDEwLjAzMTZDMzIuMzU2IDEwLjAzMTYgMzEuNDI5IDEwLjc5IDMxLjQyOSAxMi41NTY0VjE4LjIzSDI5LjY1MjRWMTIuMTcyNEMyOS42NTI0IDEwLjc4MDQgMjguOTk1OCAxMC4wMzE2IDI3LjkwNDcgMTAuMDMxNkMyNi44MTM2IDEwLjAzMTYgMjUuODA5NSAxMC43OSAyNS44MDk1IDEyLjU1NjRWMTguMjNIMjQuMDMyOFpNOS4zMzY5NCAxOC4yMDEyVjguNzI1OTlIMTAuODgxOEwxMC45OTc3IDkuODc3OTlIMTEuMDM2M0MxMS40ODA1IDkuMTA5OTkgMTIuNDQ2MSA4LjUzMzk5IDEzLjYzMzcgOC41MzM5OUMxNS4wMDQ4IDguNTMzOTkgMTUuOTcwMyA5LjE4NjggMTYuMzc1OSAxMC4wNTA4SDE2LjQxNDZDMTYuOTY0OSA5LjA5MDggMTcuOTQwMSA4LjUzMzk5IDE5LjE4NTcgOC41MzM5OUMyMS4xNzQ3IDguNTMzOTkgMjIuMzQzMSA5LjcwNTI1IDIyLjM0MzEgMTEuOTEzMlYxOC4yMDEySDIwLjU2NjRWMTIuMDU3MkMyMC41NjY0IDEwLjY1NTYgMTkuODQyMyAxMC4wMDI4IDE4Ljc1MTIgMTAuMDAyOEMxNy42NjAxIDEwLjAwMjggMTYuNzMzMSAxMC43NjEyIDE2LjczMzEgMTIuNTI3NlYxOC4yMDEySDE0Ljk1NjZWMTIuMTQzNkMxNC45NTY2IDEwLjc1MTYgMTQuMyAxMC4wMDI4IDEzLjIwODkgMTAuMDAyOEMxMi4xMTc4IDEwLjAwMjggMTEuMTEzNiAxMC43NjEyIDExLjExMzYgMTIuNTI3NlYxOC4yMDEySDkuMzM2OTRaTTUuNzM1NDIgMTguMjIwNFY1Ljg5Mzk5TDcuNTUwNjcgNS41MDk5OVYxOC4yMjA0SDUuNzM1NDJaIiBmaWxsPSIjMzMzMzMzIi8+Cjwvc3ZnPgo=" height="24" style={{objectFit:'contain'}} alt="ImmoScout24"/>;
+}
+
+/* ─── FA ICON HELPER ─── */
+const FA = ({icon, c='#757575', s=18, fw=false, style={}}) => (
+  <i className={`fa-solid ${icon}`} style={{color:c, fontSize:s, width:fw?'1.25em':undefined, textAlign:fw?'center':undefined, ...style}}/>
+);
+const FAR = ({icon, c='#757575', s=18}) => (
+  <i className={`fa-regular ${icon}`} style={{color:c, fontSize:s}}/>
+);
+
+/* ─── FIGMA SVG ICON HELPER ─── */
+const ImgIcon = ({src, size=22, filter}) => (
+  <img src={src} width={size} height={size} style={{objectFit:'contain', filter, flexShrink:0}} alt=""/>
+);
+
+/* ─── ICON ALIASES using FA + Figma SVGs ─── */
+const SearchIcon  = ({c='#757575',s=20}) => <FA icon="fa-magnifying-glass" c={c} s={s}/>;
+const MicIcon     = ({c='#757575'})      => <FA icon="fa-microphone" c={c} s={18}/>;
+const SlidersIcon = ({c='#757575'})      => <FA icon="fa-sliders" c={c} s={18}/>;
+const ChevronRight= ({c='#757575'})      => <FA icon="fa-chevron-right" c={c} s={13}/>;
+const BackArrow   = ()                   => <ImgIcon src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI3IiBoZWlnaHQ9IjE0IiB2aWV3Qm94PSIwIDAgNyAxNCIgZmlsbD0ibm9uZSI+CiAgPHBhdGggZD0iTSA2LjE3NSAxNC44MjUgQyA2LjYzMSAxNS4yODEgNy4zNjkgMTUuMjgxIDcuODI1IDE0LjgyNSBDIDguMjgxIDE0LjM2OSA4LjI4MSAxMy42MzEgNy44MjUgMTMuMTc1IEwgNyAxNCBMIDYuMTc1IDE0LjgyNSBaIE0gMCA3IEwgLTAuODI1IDYuMTc1IEMgLTEuMjgxIDYuNjMxIC0xLjI4MSA3LjM2OSAtMC44MjUgNy44MjUgTCAwIDcgWiBNIDcuODI1IDAuODI1IEMgOC4yODEgMC4zNjkgOC4yODEgLTAuMzY5IDcuODI1IC0wLjgyNSBDIDcuMzY5IC0xLjI4MSA2LjYzMSAtMS4yODEgNi4xNzUgLTAuODI1IEwgNyAwIEwgNy44MjUgMC44MjUgWiBNIDcgMTQgTCA3LjgyNSAxMy4xNzUgTCAwLjgyNSA2LjE3NSBMIDAgNyBMIC0wLjgyNSA3LjgyNSBMIDYuMTc1IDE0LjgyNSBMIDcgMTQgWiBNIDAgNyBMIDAuODI1IDcuODI1IEwgNy44MjUgMC44MjUgTCA3IDAgTCA2LjE3NSAtMC44MjUgTCAtMC44MjUgNi4xNzUgTCAwIDcgWiIgZmlsbD0iY3VycmVudENvbG9yIiBmaWxsLXJ1bGU9Im5vbnplcm8iLz4KPC9zdmc+Cg==" size={16} filter="brightness(0) saturate(100%)"/>;
+const XIcon       = ({c='#757575',s=18}) => <FA icon="fa-xmark" c={c} s={s}/>;
+const CheckMark   = ({c='#333'})         => <FA icon="fa-check" c={c} s={11}/>;
+const HeartIcon   = ({c='#757575'})      => <FAR icon="fa-heart" c={c} s={18}/>;
+const PlusCircle  = ({c='#757575'})      => <FA icon="fa-circle-plus" c={c} s={18}/>;
+const ChatIcon    = ({c='#757575'})      => <FAR icon="fa-message" c={c} s={18}/>;
+const HomeIcon2   = ({c='#757575'})      => <FA icon="fa-house" c={c} s={18}/>;
+const EuroSign    = ({c='#757575'})      => <FA icon="fa-euro-sign" c={c} s={16}/>;
+const AreaSqm     = ({c='#292526'})      => <FA icon="fa-ruler-combined" c={c} s={17}/>;
+const RoomsIcon   = ({c='#292526'})      => <FA icon="fa-door-open" c={c} s={17}/>;
+const ThumbUp     = ({c='#757575'})      => <FAR icon="fa-thumbs-up" c={c} s={18}/>;
+const ThumbDown   = ({c='#757575'})      => <FAR icon="fa-thumbs-down" c={c} s={18}/>;
+const SaveIcon    = ({c='#757575'})      => <FA icon="fa-bookmark" c={c} s={13}/>;
+const StarIcon    = ({c='#757575'})      => <FAR icon="fa-star" c={c} s={18}/>;
+
+/* ─── GERMAN FLAG ─── */
+function GermanFlag() {
+  return (
+    <div style={{width:24,height:16,borderRadius:4,overflow:'hidden',flexShrink:0,border:'1px solid #f0f0f0'}}>
+      <div style={{height:'33.3%',background:'#000'}}/>
+      <div style={{height:'33.3%',background:'#DD0000'}}/>
+      <div style={{height:'33.4%',background:'#FFCE00'}}/>
+    </div>
+  );
+}
+
+/* ─── BOTTOM NAV ─── */
+function BottomNav({ activeTab='suchen', onTab }) {
+  const tabs = [
+    {id:'suchen',label:'Suchen',icon:SearchIcon},
+    {id:'immos',label:'Meine Immos',icon:HeartIcon},
+    {id:'inserieren',label:'Inserieren',icon:PlusCircle},
+    {id:'nachrichten',label:'Nachrichten',icon:ChatIcon},
+    {id:'heyimmo',label:'HeyImmo',icon:null},
+  ];
+  return (
+    <div style={{position:'absolute',bottom:0,left:0,right:0,height:88,background:'#fff',
+      borderTop:'1px solid #e0e0e0',
+      display:'flex',alignItems:'flex-end',justifyContent:'space-around',
+      padding:'0 4px 24px',zIndex:5}}>
+      {tabs.map(t => {
+        const isActive = t.id === activeTab;
+        return (
+          <button key={t.id}
+            onClick={() => onTab && onTab(t.id)}
+            style={{background:'none',border:'none',cursor:'pointer',
+              display:'flex',flexDirection:'column',alignItems:'center',
+              gap:2,padding:'4px 6px',minWidth:52,transition:'opacity .15s'}}>
+            {t.id==='heyimmo'
+              ? <HeyImmoIcon active={false} size={32}/>
+              : <t.icon c={isActive?'#333':'#757575'}/>}
+            <span style={{fontSize:10,fontWeight:isActive?700:400,
+              color:isActive?'#333':'#757575',lineHeight:'12.5px',fontFamily:'Inter'}}>
+              {t.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── PROPERTY PHOTO ─── */
+function PropPhoto({ h=180, score, gradStart='#e8e8e8', gradEnd='#d0d0d0', useReal=false }) {
+  return (
+    <div style={{position:'relative',height:h,overflow:'hidden',flexShrink:0}}>
+      <img src="assets/property-photo.jpg" alt=""
+        style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+      {score && (
+        <div style={{position:'absolute',bottom:10,right:10,
+          width:44,height:44,borderRadius:'50%',
+          background:'#fff',border:'3px solid #00FED0',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          boxShadow:'0 2px 8px rgba(0,0,0,.12)'}}>
+          <span style={{fontSize:13,fontWeight:700,color:'#333',fontFamily:'Inter'}}>{score}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── SCREEN: HOME ─── */
+function ScreenHome({ onResults, onHeyImmo }) {
+  const filterRows = [
+    {label:'Was',icon:<HomeIcon2 c="#757575"/>,value:'Wohnung mieten'},
+    {label:'Warmmiete',icon:<EuroSign c="#757575"/>,value:'Alle'},
+    {label:'Wohnfläche',icon:<AreaSqm c="#292526"/>,value:'Alle'},
+  ];
+  return (
+    <div style={{position:'absolute',inset:0,background:'#fff',display:'flex',flexDirection:'column'}}>
+      {/* Header */}
+      <div style={{background:'#f5f5f5',borderRadius:'0 0 24px 24px',padding:'32px 16px 16px',flexShrink:0}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <img src="assets/immoscout24_logo.svg" height="24" style={{objectFit:'contain'}} alt="ImmoScout24"/>
+          <div style={{width:48,height:48,borderRadius:'50%',border:'3px solid #00FED0',overflow:'hidden',flexShrink:0}}>
+            <img src="assets/avatar.png" alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Sheet scroll area */}
+      <div style={{flex:1,overflowY:'auto',padding:'0 16px'}}>
+        {/* Search bar */}
+        <div style={{padding:'24px 0 16px'}}>
+          <div style={{background:'#f5f5f5',border:'1px solid #eee',borderRadius:999,
+            padding:'16px 24px',display:'flex',alignItems:'center',gap:12,cursor:'text',
+            transition:'border-color .15s'}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor='#ccc'}
+            onMouseLeave={e=>e.currentTarget.style.borderColor='#eee'}>
+            <SearchIcon c="#757575"/>
+            <span style={{flex:1,color:'#757575',fontSize:16,fontFamily:'Inter'}}>Wonach suchst du?</span>
+            <MicIcon c="#757575"/>
+            <div style={{width:1,height:24,background:'#e0e0e0'}}/>
+            <SlidersIcon c="#757575"/>
+          </div>
+        </div>
+
+        {/* Berlin pill */}
+        <div style={{border:'1px solid #e0e0e0',borderRadius:999,height:50,
+          padding:'0 17px',display:'flex',alignItems:'center',gap:12,marginBottom:2,cursor:'pointer'}}
+          onMouseEnter={e=>e.currentTarget.style.background='rgba(0,0,0,.02)'}
+          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          <GermanFlag/>
+          <span style={{fontWeight:500,color:'#292526',fontSize:16,fontFamily:'Inter'}}>Berlin</span>
+        </div>
+
+        {/* Filter rows */}
+        {filterRows.map((r,i) => (
+          <div key={i} style={{borderBottom:'1px solid #e0e0e0',height:55.5,
+            display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',
+            transition:'background .1s'}}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(0,0,0,.02)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              {r.icon}
+              <span style={{color:'#757575',fontSize:15,fontFamily:'Inter'}}>{r.label}</span>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontWeight:500,color:'#292526',fontSize:15,fontFamily:'Inter'}}>{r.value}</span>
+              <ChevronRight/>
+            </div>
+          </div>
+        ))}
+
+        {/* Zimmer with range slider */}
+        <div style={{borderBottom:'1px solid #e0e0e0',padding:'16px 0 12px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <RoomsIcon c="#292526"/>
+              <span style={{color:'#757575',fontSize:15,fontFamily:'Inter'}}>Zimmer</span>
+            </div>
+            <span style={{fontWeight:500,color:'#292526',fontSize:15,fontFamily:'Inter'}}>ab 2</span>
+          </div>
+          <div style={{height:4,borderRadius:999,
+            background:'linear-gradient(90deg,#00FED0 0%,#00FED0 20%,#e0e0e0 20%,#e0e0e0 100%)'}}/>
+        </div>
+
+        {/* Weitere Merkmale */}
+        <div style={{padding:'16px 0 8px'}}>
+          <button style={{width:'100%',height:50,borderRadius:999,background:'#fff',
+            border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',
+            gap:8,cursor:'pointer',transition:'background .2s ease'}}
+            onMouseEnter={e=>e.currentTarget.style.background='#f5f5f5'}
+            onMouseLeave={e=>e.currentTarget.style.background='#fff'}
+            onMouseDown={e=>e.currentTarget.style.background='#e0e0e0'}
+            onMouseUp={e=>e.currentTarget.style.background='#f5f5f5'}>
+            <span style={{fontWeight:700,fontSize:14,color:'#333',fontFamily:'Inter'}}>Weitere Merkmale</span>
+            <div style={{width:26,height:26,borderRadius:'50%',background:'#e0e0e0',
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <span style={{fontWeight:500,fontSize:12,color:'#333',fontFamily:'Inter'}}>+2</span>
+            </div>
+          </button>
+        </div>
+
+        {/* CTA */}
+        <div style={{padding:'8px 0 24px'}}>
+          <button onClick={onResults}
+            style={{width:'100%',height:45,borderRadius:999,background:'#333',
+              border:'none',cursor:'pointer',color:'#fff',fontWeight:700,fontSize:14,
+              fontFamily:'Inter',transition:'background .2s ease'}}
+            onMouseEnter={e=>e.currentTarget.style.background='#1a1a1a'}
+            onMouseLeave={e=>e.currentTarget.style.background='#333'}
+            onMouseDown={e=>{e.currentTarget.style.background='#000';e.currentTarget.style.transform='scale(.98)'}}>
+            9.968 Ergebnisse anzeigen
+          </button>
+        </div>
+      </div>
+
+      <BottomNav activeTab="suchen" onTab={id=>{if(id==='heyimmo')onHeyImmo();}}/>
+    </div>
+  );
+}
+
+/* ─── SCREEN: MANUAL SEARCH ─── */
+function ScreenManualSearch({ onBack, onImportLifestyle }) {
+  const [activeTab,setActiveTab] = useState('Alle');
+  const tabs = ['Alle','Nur Plus+','Neubau','Balkon','Nur hier','Garten'];
+  const cards = [
+    {title:'Erstbezug: ruhige & helle 3-Zimmer mit Balkon',price:'1.785 €',area:'89 m²',rooms:'3 Zi.',addr:'Grünberger Str. 42, 10245 Berlin, Friedrichshain',badges:[{txt:'Neu',bg:'#333',c:'#fff'},{txt:'Von Privat',bg:'rgba(255,255,255,.95)',c:'#333'}],g1:'#dde8d4',g2:'#c8d9be'},
+    {title:'14 passende Wohneinheiten: Modernes Wohnen & Garten',price:'1.168 – 2.050 €',area:'26,50 – 80,00 m²',rooms:null,addr:'Buschkrugallee 64, 12359 Berlin, Britz',badges:[{txt:'Bauprojekt',bg:'#e8e8e8',c:'#333'}],g1:'#e0ddd4',g2:'#d0ccbf'},
+    {title:'Erstbezug: ruhig & grün – Wohnen im sanierten Altbau',price:'1.312,08 €',area:'59,64 m²',rooms:'2 Zi.',addr:'Romanshorner Weg 111, Reinickendorf',badges:[{txt:'Von Privat',bg:'rgba(255,255,255,.95)',c:'#333'}],g1:'#d4dde0',g2:'#bec8d0'},
+  ];
+  return (
+    <div style={{position:'absolute',inset:0,background:'#fff',display:'flex',flexDirection:'column'}}>
+      {/* Search header */}
+      <div style={{padding:'32px 16px 0',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:0}}>
+          <button onClick={onBack} style={{background:'none',border:'none',cursor:'pointer',padding:0,flexShrink:0}}>
+            <BackArrow/>
+          </button>
+          <div style={{flex:1,background:'#f5f5f5',borderRadius:999,padding:'8px 20px',
+            display:'flex',gap:12,alignItems:'center'}}>
+            <SearchIcon c="#757575"/>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:14,color:'#333',fontFamily:'Inter'}}>Berlin</div>
+              <div style={{fontSize:12,color:'#757575',fontFamily:'Inter'}}>Wohnung</div>
+            </div>
+            <MicIcon c="#757575"/>
+            <div style={{width:1,height:24,background:'#e0e0e0'}}/>
+            <SlidersIcon c="#757575"/>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{borderBottom:'1px solid #e0e0e0',padding:'0 16px',
+        overflowX:'auto',display:'flex',gap:20,flexShrink:0,marginTop:4}}>
+        {tabs.map(t=>(
+          <button key={t} onClick={()=>setActiveTab(t)}
+            style={{background:'none',border:'none',cursor:'pointer',
+              padding:'10px 0',whiteSpace:'nowrap',
+              fontWeight:activeTab===t?700:400,
+              color:activeTab===t?'#333':'#757575',
+              fontSize:12,fontFamily:'Inter',
+              borderBottom:activeTab===t?'2px solid #333':'2px solid transparent',
+              transition:'color .15s'}}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Sort + save */}
+      <div style={{padding:'10px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+        <span style={{fontWeight:700,fontSize:12,color:'#333',fontFamily:'Inter'}}>Sortiert nach Standard</span>
+        <div style={{background:'#f5f5f5',borderRadius:999,padding:'5px 12px',
+          display:'flex',alignItems:'center',gap:5,cursor:'pointer'}}>
+          <SaveIcon c="#757575"/>
+          <span style={{fontWeight:700,fontSize:12,color:'#757575',fontFamily:'Inter'}}>Suche speichern</span>
+        </div>
+      </div>
+
+      {/* Lifestyle Matching Card */}
+      <div style={{padding:'0 16px 10px',flexShrink:0}}>
+        <div style={{borderRadius:14,
+          background:'radial-gradient(ellipse at 25% 50%,#ece287 0%,#f5f5f5 65%)',
+          border:'1px solid #e0e0e0',padding:16,display:'flex',gap:12,cursor:'pointer',
+          transition:'box-shadow .2s'}}
+          onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'}
+          onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,color:'#333',fontFamily:'Inter',marginBottom:2}}>1.000 Ergebnisse</div>
+            <div style={{fontWeight:700,fontSize:16,color:'#333',fontFamily:'Inter',marginBottom:6}}>64% passen schon zu dir</div>
+            <div style={{fontSize:13,color:'#757575',fontFamily:'Inter',marginBottom:12,lineHeight:1.45}}>Mit mehr Kontext findest du Wohnungen, die besser zu deinem Lebensstil passen.</div>
+            <button onClick={onImportLifestyle}
+              style={{borderRadius:999,background:'#333',border:'none',
+                padding:'8px 16px',color:'#fff',fontWeight:700,fontSize:14,
+                fontFamily:'Inter',cursor:'pointer',transition:'background .2s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='#1a1a1a'}
+              onMouseLeave={e=>e.currentTarget.style.background='#333'}>
+              Importiere deinen Lifestyle
+            </button>
+          </div>
+          <div style={{width:44,height:44,borderRadius:'50%',
+            border:'3px solid #757575',display:'flex',alignItems:'center',
+            justifyContent:'center',flexShrink:0,alignSelf:'center'}}>
+            <span style={{fontWeight:700,fontSize:14,color:'#333',fontFamily:'Inter'}}>64</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Property cards */}
+      <div style={{flex:1,overflowY:'auto',padding:'0 16px 100px'}}>
+        {cards.map((card,i)=>(
+          <div key={i} style={{marginBottom:16,borderRadius:12,overflow:'hidden',
+            border:'1px solid #f0f0f0',cursor:'pointer',
+            transition:'transform .2s ease,box-shadow .2s ease'}}
+            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 6px 20px rgba(0,0,0,.1)';}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none';}}>
+            <div style={{position:'relative'}}>
+              <PropPhoto h={180} gradStart={card.g1} gradEnd={card.g2}/>
+              <div style={{position:'absolute',top:10,left:10,display:'flex',gap:6}}>
+                {card.badges.map((b,j)=>(
+                  <span key={j} style={{background:b.bg,color:b.c,fontSize:11,
+                    fontWeight:700,padding:'4px 10px',borderRadius:999,fontFamily:'Inter'}}>
+                    {b.txt}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div style={{padding:'12px 14px'}}>
+              <div style={{fontWeight:700,fontSize:12,color:'#292526',fontFamily:'Inter',marginBottom:6}}>{card.title}</div>
+              <div style={{display:'flex',gap:6,marginBottom:5,alignItems:'center',flexWrap:'wrap'}}>
+                <span style={{fontWeight:700,fontSize:13,color:'#292526',fontFamily:'Inter'}}>{card.price}</span>
+                {card.area&&<><span style={{color:'#bbb'}}>·</span><span style={{fontSize:12,color:'#757575',fontFamily:'Inter'}}>{card.area}</span></>}
+                {card.rooms&&<><span style={{color:'#bbb'}}>·</span><span style={{fontSize:12,color:'#757575',fontFamily:'Inter'}}>{card.rooms}</span></>}
+              </div>
+              <div style={{fontSize:12,color:'#757575',fontFamily:'Inter'}}>{card.addr}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <BottomNav activeTab="suchen" onTab={()=>{}}/>
+    </div>
+  );
+}
+
+/* ─── HEYIMMO BOTTOM SHEET ─── */
+function HeyImmoSheet({ phase, onClose, onNavigate }) {
+  const [visible,setVisible] = useState(false);
+  const [closing,setClosing] = useState(false);
+
+  useEffect(()=>{
+    requestAnimationFrame(()=>setVisible(true));
+  },[]);
+
+
+  function handleClose(){
+    setClosing(true);
+    setTimeout(onClose,260);
+  }
+
+  return (
+    <>
+      <div onClick={handleClose}
+        style={{position:'absolute',inset:'0 0 88px 0',background:'rgba(0,0,0,.2)',zIndex:10,
+          opacity:visible?1:0,transition:'opacity .3s'}}/>
+      <div className={closing?'sheet-out':visible?'sheet-in':''}
+        style={{position:'absolute',bottom:88,left:0,right:0,
+          background:'#fff',borderRadius:'20px 20px 0 0',
+          maxHeight:'80%',zIndex:11,display:'flex',flexDirection:'column',
+          boxShadow:'0 -4px 30px rgba(0,0,0,.12)',
+          transform:visible&&!closing?'translateY(0)':'translateY(100%)',
+          overflow:'hidden'}}>
+        {/* Handle */}
+        <div style={{display:'flex',justifyContent:'center',padding:'10px 0 4px'}}>
+          <div style={{width:40,height:4,background:'#e0e0e0',borderRadius:2}}/>
+        </div>
+        {/* Header */}
+        <div style={{padding:'8px 16px 0',display:'flex',alignItems:'center',gap:8}}>
+          <HeyImmoIcon active={true} size={28}/>
+          <span style={{flex:1,fontWeight:600,fontSize:15,color:'#333',fontFamily:'Inter'}}>HeyImmo - Dein KI-Assistent</span>
+          <div style={{background:'#333',color:'#fff',borderRadius:4,padding:'2px 6px',
+            fontSize:10,fontWeight:700,fontFamily:'Inter',letterSpacing:.5}}>BETA</div>
+          <button onClick={handleClose} style={{background:'none',border:'none',cursor:'pointer',padding:4}}>
+            <XIcon/>
+          </button>
+        </div>
+        {/* Disclaimer */}
+        <div style={{padding:'8px 16px 4px',fontSize:12,color:'#757575',lineHeight:1.4,fontFamily:'Inter'}}>
+          Hinweis: HeyImmo ist ein KI-Assistent. Bitte beachte die{' '}
+          <span style={{color:'#00B4A0',textDecoration:'underline',cursor:'pointer'}}>rechtlichen Hinweise</span>{' '}und den{' '}
+          <span style={{color:'#00B4A0',textDecoration:'underline',cursor:'pointer'}}>Datenschutz</span>.
+        </div>
+        {/* Chat */}
+        <div style={{flex:1,overflowY:'auto',padding:'12px 16px',display:'flex',flexDirection:'column',gap:12}}>
+          {/* User bubble */}
+          <div style={{display:'flex',justifyContent:'flex-end'}}>
+            <div style={{background:'#f5f5f5',borderRadius:'16px 16px 4px 16px',padding:'12px 14px',maxWidth:'85%'}}>
+              <span style={{fontSize:14,color:'#292526',fontFamily:'Inter'}}>Finde Wohnungen passend zu meinem Lifestyle in Berlin</span>
+            </div>
+          </div>
+          {/* AI row */}
+          <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+            <HeyImmoIcon active={true} size={28}/>
+            {phase==='loading'
+              ? <div style={{display:'flex',gap:7,padding:'14px 0 10px',alignItems:'center'}}>
+                  {[0,1,2].map(i=>(
+                    <div key={i} style={{width:8,height:8,borderRadius:'50%',background:'#999',
+                      animation:`dot-pulse 1.2s ${i*.2}s ease-in-out infinite`}}/>
+                  ))}
+                </div>
+              : <div style={{flex:1,animation:'fadeInUp .4s ease-out'}}>
+                  <div style={{fontSize:14,color:'#292526',lineHeight:1.55,fontFamily:'Inter',marginBottom:12}}>
+                    Ich habe <strong>387 Wohnungen in Berlin</strong> gefunden, die gut zu deinem Profil passen. Besonders in Prenzlauer Berg und Friedrichshain gibt es Treffer, die zu deinem Arbeitsweg und deinen Freizeitwünschen passen.
+                  </div>
+                  <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:12}}>
+                    <button style={{border:'1px solid #e0e0e0',borderRadius:999,padding:'6px 12px',
+                      fontSize:13,color:'#333',background:'#fff',cursor:'pointer',fontFamily:'Inter',
+                      transition:'background .2s'}}
+                      onMouseEnter={e=>e.currentTarget.style.background='#f5f5f5'}
+                      onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
+                      Alle anzeigen →
+                    </button>
+                    <button style={{borderRadius:999,background:'#333',border:'none',
+                      padding:'6px 14px',fontSize:13,color:'#fff',cursor:'pointer',
+                      fontFamily:'Inter',fontWeight:700,transition:'background .2s'}}
+                      onClick={onNavigate}
+                      onMouseEnter={e=>e.currentTarget.style.background='#1a1a1a'}
+                      onMouseLeave={e=>e.currentTarget.style.background='#333'}>
+                      Mehr erfahren →
+                    </button>
+                  </div>
+                  <div style={{display:'flex',gap:12}}>
+                    <button style={{background:'none',border:'none',cursor:'pointer'}}><ThumbUp/></button>
+                    <button style={{background:'none',border:'none',cursor:'pointer'}}><ThumbDown/></button>
+                  </div>
+                </div>
+            }
+          </div>
+        </div>
+        {/* Input bar */}
+        <div style={{borderTop:'1px solid #e0e0e0',padding:'12px 16px',
+          display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+          <span style={{flex:1,color:'#757575',fontSize:14,fontFamily:'Inter'}}>HeyImmo! Jetzt chatten...</span>
+          <MicIcon c="#757575"/>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─── SCREEN: CONNECTION INFO ─── */
+function ScreenConnectionInfo({ onBack, onConnect, onLater }) {
+  const [checked,setChecked] = useState(false);
+
+  const benefits = [
+    {t:'Passendere Treffer',d:'Wohnungen passen besser zu deinem Lebensstil und deinen Prioritäten'},
+    {t:'Weniger manuelle Filter',d:'Bereits bekannte Präferenzen fließen direkt in die Suche ein'},
+    {t:'Schneller die passende Wohnung finden',d:'Mehr Relevanz schon in den ersten Ergebnissen'},
+  ];
+
+    const AI_LOGOS = [
+    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjcyLjAwMDQiIGhlaWdodD0iNzIuMDAwNCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTAuMDAwNDg4MjgxIC0wLjAwMDI0NDE0MSkiIGZpbGw9IiMzMzMzMzMiPjwvcmVjdD4KPHBhdGggZD0iTTU2LjQwMDcgMzEuNjQ2MUM1Ny40ODE0IDI4LjM3NzYgNTcuMTA5MyAyNC43OTcgNTUuMzgxMSAyMS44MjM5QzUyLjc4MjIgMTcuMjYzOCA0Ny41NTc1IDE0LjkxNzggNDIuNDU0OSAxNi4wMjE4QzQwLjE4NDkgMTMuNDQ0OCAzNi45MjM2IDExLjk3OTIgMzMuNTA0NCAxMi4wMDAyQzI4LjI4ODcgMTEuOTg4MiAyMy42NjA5IDE1LjM3MjMgMjIuMDU2MyAyMC4zNzM0QzE4LjcwNTYgMjEuMDY0OSAxNS44MTM1IDIzLjE3ODUgMTQuMTIxIDI2LjE3NEMxMS41MDI3IDMwLjcyMjEgMTIuMDk5NiAzNi40NTUyIDE1LjU5NzYgNDAuMzU1M0MxNC41MTcgNDMuNjIzOSAxNC44ODkxIDQ3LjIwNDUgMTYuNjE3MyA1MC4xNzc1QzE5LjIxNjIgNTQuNzM3NiAyNC40NDA5IDU3LjA4MzcgMjkuNTQzNSA1NS45Nzk3QzMxLjgxMiA1OC41NTY3IDM1LjA3NDggNjAuMDIyMyAzOC40OTM5IDU5Ljk5OTdDNDMuNzEyNyA2MC4wMTMyIDQ4LjM0MTkgNTYuNjI2MiA0OS45NDY1IDUxLjYyMDZDNTMuMjk3MiA1MC45MjkxIDU2LjE4OTQgNDguODE1NSA1Ny44ODE4IDQ1LjgxOTlDNjAuNDk3MSA0MS4yNzE4IDU5Ljg5ODggMzUuNTQzMiA1Ni40MDIyIDMxLjY0MzFMNTYuNDAwNyAzMS42NDYxWk0zOC40OTY5IDU2Ljg2MzJDMzYuNDA4NSA1Ni44NjYyIDM0LjM4NTYgNTYuMTI5NyAzMi43ODI1IDU0Ljc4MTFDMzIuODU1NCA1NC43NDIxIDMyLjk4MiA1NC42NzE2IDMzLjA2MzggNTQuNjIwNkw0Mi41NDg2IDQ5LjEwMDVDNDMuMDMzOSA0OC44MjMgNDMuMzMxNiA0OC4zMDI1IDQzLjMyODYgNDcuNzRWMzQuMjY1Mkw0Ny4zMzcyIDM2LjU5NzdDNDcuMzgwNCAzNi42MTg3IDQ3LjQwODYgMzYuNjYwNyA0Ny40MTQ2IDM2LjcwODhWNDcuODY3NUM0Ny40MDg2IDUyLjgyOTYgNDMuNDIwOSA1Ni44NTI3IDM4LjQ5NjkgNTYuODYzMlpNMTkuMzE4OSA0OC42MDg1QzE4LjI3MjUgNDYuNzg3NSAxNy44OTU5IDQ0LjY1MjkgMTguMjU0NiA0Mi41ODE0QzE4LjMyNDYgNDIuNjIzNCAxOC40NDgxIDQyLjY5OTkgMTguNTM1OSA0Mi43NTA5TDI4LjAyMDggNDguMjcxQzI4LjUwMTUgNDguNTU0NSAyOS4wOTY5IDQ4LjU1NDUgMjkuNTc5MiA0OC4yNzFMNDEuMTU4NCA0MS41MzI5VjQ2LjE5OEM0MS4xNjEzIDQ2LjI0NiA0MS4xMzkgNDYuMjkyNSA0MS4xMDE4IDQ2LjMyMjVMMzEuNTE0MyA1MS45MDExQzI3LjI0MzcgNTQuMzc5MSAyMS43ODk4IDUyLjkwNjEgMTkuMzIwNCA0OC42MDg1SDE5LjMxODlaTTE2LjgyMjcgMjcuNzQ0NkMxNy44NjQ2IDI1LjkyMDUgMTkuNTA5NCAyNC41MjU1IDIxLjQ2ODMgMjMuODAxQzIxLjQ2ODMgMjMuODgzNSAyMS40NjM5IDI0LjAyOSAyMS40NjM5IDI0LjEzMVYzNS4xNzI3QzIxLjQ2MDkgMzUuNzMzNyAyMS43NTg2IDM2LjI1NDIgMjIuMjQyMyAzNi41MzE3TDMzLjgyMTUgNDMuMjY4NEwyOS44MTI5IDQ1LjYwMDlDMjkuNzcyNyA0NS42Mjc5IDI5LjcyMjEgNDUuNjMyNCAyOS42Nzc1IDQ1LjYxMjlMMjAuMDg4NSA0MC4wMjk4QzE1LjgyNjkgMzcuNTQyOCAxNC4zNjUxIDMyLjA0ODIgMTYuODIxMiAyNy43NDYxTDE2LjgyMjcgMjcuNzQ0NlpNNDkuNzU3NSAzNS40NjgyTDM4LjE3ODQgMjguNzMwMUw0Mi4xODY5IDI2LjM5OUM0Mi4yMjcxIDI2LjM3MiA0Mi4yNzc3IDI2LjM2NzUgNDIuMzIyNCAyNi4zODdMNTEuOTExNCAzMS45NjU3QzU2LjE4MDQgMzQuNDUxMiA1Ny42NDM3IDM5Ljk1NDggNTUuMTc3MiA0NC4yNTY5QzU0LjEzMzcgNDYuMDc3OSA1Mi40OTA0IDQ3LjQ3MyA1MC41MzMgNDguMTk5VjM2LjgyNzNDNTAuNTM3NSAzNi4yNjYyIDUwLjI0MTMgMzUuNzQ3MiA0OS43NTkgMzUuNDY4Mkg0OS43NTc1Wk01My43NDY3IDI5LjQxNzFDNTMuNjc2OCAyOS4zNzM2IDUzLjU1MzIgMjkuMjk4NiA1My40NjU0IDI5LjI0NzZMNDMuOTgwNiAyMy43Mjc1QzQzLjQ5OTggMjMuNDQ0IDQyLjkwNDQgMjMuNDQ0IDQyLjQyMjEgMjMuNzI3NUwzMC44NDMgMzAuNDY1NlYyNS44MDA1QzMwLjg0IDI1Ljc1MjUgMzAuODYyMyAyNS43MDYgMzAuODk5NSAyNS42NzZMNDAuNDg3IDIwLjEwMTlDNDQuNzU3NiAxNy42MTkzIDUwLjIxNzUgMTkuMDk2OSA1Mi42Nzk1IDIzLjQwMkM1My43MTk5IDI1LjIyIDU0LjA5NjUgMjcuMzQ4NiA1My43NDM3IDI5LjQxNzFINTMuNzQ2N1pNMjguNjYzOCAzNy43MzE4TDI0LjY1MzcgMzUuMzk5MkMyNC42MTA2IDM1LjM3ODIgMjQuNTgyMyAzNS4zMzYyIDI0LjU3NjMgMzUuMjg4MlYyNC4xMjk1QzI0LjU3OTMgMTkuMTYxNCAyOC41Nzg5IDE1LjEzNTMgMzMuNTA4OSAxNS4xMzgzQzM1LjU5NDMgMTUuMTM4MyAzNy42MTI3IDE1Ljg3NjMgMzkuMjE1OSAxNy4yMjAzQzM5LjE0MjkgMTcuMjU5MyAzOS4wMTc5IDE3LjMyOTggMzguOTM0NSAxNy4zODA4TDI5LjQ0OTcgMjIuOTAxQzI4Ljk2NDUgMjMuMTc4NSAyOC42NjY4IDIzLjY5NzUgMjguNjY5NyAyNC4yNkwyOC42NjM4IDM3LjcyODhWMzcuNzMxOFpNMzAuODQxNSAzMy4wMDA3TDM1Ljk5OTIgMjkuOTk5MUw0MS4xNTY5IDMyLjk5OTJWMzkuMDAwOEwzNS45OTkyIDQyLjAwMDlMMzAuODQxNSAzOS4wMDA4VjMzLjAwMDdaIiBmaWxsPSJ3aGl0ZSI+PC9wYXRoPgo8L3N2Zz4=",
+    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjcyLjAwMDQiIGhlaWdodD0iNzIuMDAwNCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAtMC4wMDAyNDQxNDEpIiBmaWxsPSIjMzMzMzMzIj48L3JlY3Q+CjxwYXRoIGQ9Ik0yMS40MTgyIDQzLjkxMUwzMC44NjAyIDM4LjYxNjhMMzEuMDE4MyAzOC4xNTU0TDMwLjg2MDIgMzcuOTAwNEgzMC4zOTg0TDI4LjgxODYgMzcuODAzMkwyMy40MjM0IDM3LjY1NzRMMTguNzQ0OCAzNy40NjMyTDE0LjIxMjIgMzcuMjIwNEwxMy4wNjk5IDM2Ljk3NzRMMTIuMDAwNSAzNS41NjlMMTIuMTA5OCAzNC44NjQ2TDEzLjA2OTkgMzQuMjIxTDE0LjQ0MjkgMzQuMzQyNkwxNy40ODEgMzQuNTQ5TDIyLjAzNzkgMzQuODY0NkwyNS4zNDMyIDM1LjA1OUwzMC4yNDA1IDM1LjU2OUgzMS4wMTgzTDMxLjEyNzYgMzUuMjUzMkwzMC44NjAyIDM1LjA1OUwzMC42NTM2IDM0Ljg2NDZMMjUuOTM4OSAzMS42NzEyTDIwLjgzNSAyOC4yOTU0TDE4LjE2MTggMjYuMzUyNkwxNi43MTU3IDI1LjM2OUwxNS45ODY1IDI0LjQ0NjJMMTUuNjcwNyAyMi40MzA2TDE2Ljk4MzEgMjAuOTg1NkwxOC43NDUgMjEuMTA3TDE5LjE5NDUgMjEuMjI4NEwyMC45ODA5IDIyLjYwMDRMMjQuNzk2NiAyNS41NTEyTDI5Ljc3OSAyOS4yMTg0TDMwLjUwODEgMjkuODI1NEwzMC43OTk3IDI5LjYxOUwzMC44MzYyIDI5LjQ3MzRMMzAuNTA3OSAyOC45MjY4TDI3Ljc5ODEgMjQuMDMzNEwyNC45MDU5IDE5LjA1NDhMMjMuNjE3OSAxNi45OTA4TDIzLjI3NzYgMTUuNzUyQzIzLjE1NjEgMTUuMjQyIDIzLjA3MTEgMTQuODE3MiAyMy4wNzExIDE0LjI5NUwyNC41NjU4IDEyLjI2N0wyNS4zOTE4IDEyTDI3LjM4NDggMTIuMjY3MkwyOC4yMjM0IDEyLjk5NTZMMjkuNDYyNyAxNS44MjVMMzEuNDY3OSAyMC4yODE0TDM0LjU3ODggMjYuMzQwNkwzNS40OTAxIDI4LjEzNzZMMzUuOTc2MyAyOS44MDEyTDM2LjE1ODQgMzAuMzExMkgzNi40NzQ0VjMwLjAxOThMMzYuNzI5NiAyNi42MDc4TDM3LjIwMzYgMjIuNDE4NEwzNy42NjU0IDE3LjAyN0wzNy44MjMzIDE1LjUwOTJMMzguNTc2NiAxMy42ODc4TDQwLjA3MTQgMTIuNzA0Mkw0MS4yMzc5IDEzLjI2MjhMNDIuMTk4IDE0LjYzNDhMNDIuMDY0MyAxNS41MjE0TDQxLjQ5MzMgMTkuMjI0OEw0MC4zNzUyIDI1LjAyOUwzOS42NDYxIDI4LjkxNDhINDAuMDcxNEw0MC41NTc1IDI4LjQyOUw0Mi41MjYgMjUuODE4NEw0NS44MzEzIDIxLjY4OThMNDcuMjg5NiAyMC4wNTA2TDQ4Ljk5MDkgMTguMjQxNEw1MC4wODQ2IDE3LjM3OTJINTIuMTUwM0w1My42Njk1IDE5LjYzNzhMNTIuOTg5IDIxLjk2OTJMNTAuODYyNCAyNC42NjQ4TDQ5LjEwMDIgMjYuOTQ3Nkw0Ni41NzI3IDMwLjM0NzZMNDQuOTkyOSAzMy4wNjc2TDQ1LjEzODggMzMuMjg2Mkw0NS41MTU1IDMzLjI0OTZMNTEuMjI2OCAzMi4wMzU2TDU0LjMxMzQgMzEuNDc2OEw1Ny45OTU0IDMwLjg0NTRMNTkuNjYwMiAzMS42MjI2TDU5Ljg0MjQgMzIuNDExOEw1OS4xODYzIDM0LjAyNjhMNTUuMjQ5MyAzNC45OTgyTDUwLjYzMTQgMzUuOTIxTDQzLjc1MzQgMzcuNTQ4Mkw0My42NjgzIDM3LjYwOUw0My43NjU2IDM3LjczMDRMNDYuODY0MyAzOC4wMjE4TDQ4LjE4ODkgMzguMDk0Nkg1MS40MzM0TDU3LjQ3MyAzOC41NDRMNTkuMDUyNiAzOS41ODhMNjAuMDAwNSA0MC44NjMyTDU5Ljg0MjQgNDEuODM0Nkw1Ny40MTIxIDQzLjA3MzJMNTQuMTMxIDQyLjI5Nkw0Ni40NzUyIDQwLjQ3NDZMNDMuODUwNiAzOS44MTg4SDQzLjQ4NlY0MC4wMzc0TDQ1LjY3MzQgNDIuMTc0Nkw0OS42ODM1IDQ1Ljc5M0w1NC43MDIzIDUwLjQ1NThMNTQuOTU3NSA1MS42MDk0TDU0LjMxMzQgNTIuNTIwMkw1My42MzI5IDUyLjQyM0w0OS4yMjE3IDQ5LjEwOEw0Ny41MjA0IDQ3LjYxNDRMNDMuNjY4MyA0NC4zNzI0SDQzLjQxMzFWNDQuNzEyNEw0NC4zMDAyIDQ2LjAxMTZMNDguOTkwOSA1My4wNTQ0TDQ5LjIzMzkgNTUuMjE1OEw0OC44OTM3IDU1LjkyTDQ3LjY3ODUgNTYuMzQ1TDQ2LjM0MTcgNTYuMTAyMkw0My41OTU0IDUyLjI1M0w0MC43NjQxIDQ3LjkxOEwzOC40Nzk2IDQ0LjAzMjRMMzguMiA0NC4xOTA0TDM2Ljg1MDkgNTguNzAwOEwzNi4yMTkzIDU5LjQ0MTRMMzQuNzYwOSA2MEwzMy41NDU4IDU5LjA3NzJMMzIuOTAxNyA1Ny41ODM2TDMzLjU0NTggNTQuNjMzTDM0LjMyMzYgNTAuNzgzOEwzNC45NTU1IDQ3LjcyMzhMMzUuNTI2NSA0My45MjNMMzUuODY2OCA0Mi42NjAyTDM1Ljg0MjYgNDIuNTc1MkwzNS41NjMgNDIuNjExNkwzMi42OTUyIDQ2LjU0NkwyOC4zMzI3IDUyLjQzNTJMMjQuODgxNSA1Ni4xMjY0TDI0LjA1NTIgNTYuNDU0NEwyMi42MjEzIDU1LjcxMzZMMjIuNzU0OCA1NC4zOUwyMy41NTcxIDUzLjIxMjJMMjguMzMyNyA0Ny4xNDA4TDMxLjIxMjcgNDMuMzc2OEwzMy4wNzIxIDQxLjIwMzJMMzMuMDU5NyA0MC44ODc0SDMyLjk1MDRMMjAuMjYzOCA0OS4xMjAyTDE4LjAwMzQgNDkuNDExNkwxNy4wMzEzIDQ4LjUwMDhMMTcuMTUzIDQ3LjAwNzRMMTcuNjE0NyA0Ni41MjE2TDIxLjQzMDQgNDMuODk4OEwyMS40MTgyIDQzLjkxMVoiIGZpbGw9IndoaXRlIj48L3BhdGg+Cjwvc3ZnPg==",
+    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjcyLjAwMDQiIGhlaWdodD0iNzIuMDAwNCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTAuMDAwNDg4MjgxIC0wLjAwMDI0NDE0MSkiIGZpbGw9IiMzMzMzMzMiPjwvcmVjdD4KPHBhdGggZD0iTTM1IDEyQzM1LjUwMyAxMiAzNS45NDE2IDEyLjM0MzkgMzYuMDY0NCAxMi44MzIxQzM2LjQzOTYgMTQuMzI1MiAzNi45MzQxIDE1Ljc4NTggMzcuNTQzIDE3LjE5OTlDMzkuMTM0NyAyMC44OTgyIDQxLjMxOSAyNC4xMzUgNDQuMDkyIDI2LjkwOEM0Ni44NjY1IDI5LjY4MTggNTAuMTAyNSAzMS44NjYgNTMuODAwMSAzMy40NTc4QzU1LjIxNDUgMzQuMDY2NSA1Ni42NzUzIDM0LjU2MDkgNTguMTY4NiAzNC45MzY0QzU4LjY1NjggMzUuMDU5MSA1OSAzNS40OTcgNTkgMzZDNTkgMzYuNTAzIDU4LjY1NjggMzYuOTQxNiA1OC4xNjc5IDM3LjA2NDRDNTYuNjc0OCAzNy40Mzk2IDU1LjIxNDEgMzcuOTM0MSA1My44MDAxIDM4LjU0M0M1MC4xMDE4IDQwLjEzNDcgNDYuODY1NyA0Mi4zMTkgNDQuMDkyIDQ1LjA5MkM0MS4zMTkgNDcuODY2NSAzOS4xMzQ3IDUxLjEwMjUgMzcuNTQzIDU0LjgwMDFDMzYuOTM0IDU2LjIxNDQgMzYuNDM5MyA1Ny42NzUzIDM2LjA2MzYgNTkuMTY4NkMzNi4wMDQyIDU5LjQwNTggMzUuODY3MyA1OS42MTY0IDM1LjY3NDYgNTkuNzY3QzM1LjQ4MiA1OS45MTc2IDM1LjI0NDUgNTkuOTk5NiAzNSA2MEMzNC40OTcgNjAgMzQuMDU5MSA1OS42NTY4IDMzLjkzNjQgNTkuMTY3OUMzMy41NjA5IDU3LjY3NDcgMzMuMDY2MiA1Ni4yMTQxIDMyLjQ1NyA1NC44MDAxQzMwLjg2NiA1MS4xMDE4IDI4LjY4MjUgNDcuODY1NyAyNS45MDggNDUuMDkyQzIzLjEzNDMgNDIuMzE5IDE5Ljg5ODIgNDAuMTM0NyAxNi4xOTk5IDM4LjU0M0MxNC43ODU4IDM3LjkzNCAxMy4zMjUyIDM3LjQzOTMgMTEuODMyMSAzNy4wNjM2QzExLjU5NDkgMzcuMDA0NCAxMS4zODQyIDM2Ljg2NzYgMTEuMjMzNSAzNi42NzUxQzExLjA4MjggMzYuNDgyNiAxMS4wMDA2IDM2LjI0NTMgMTEgMzYuMDAwN0MxMSAzNS40OTc4IDExLjM0MzkgMzUuMDU5OSAxMS44MzIxIDM0LjkzNzFDMTMuMzI1MyAzNC41NjE2IDE0Ljc4NTkgMzQuMDY2OSAxNi4xOTk5IDMzLjQ1NzhDMTkuODk4MiAzMS44NjY3IDIzLjEzNSAyOS42ODI1IDI1LjkwOCAyNi45MDg3QzI4LjY4MTggMjQuMTM1NyAzMC44NjYgMjAuODk4OSAzMi40NTc4IDE3LjIwMDZDMzMuMDY2NSAxNS43ODY1IDMzLjU2MDkgMTQuMzI1OSAzMy45MzY0IDEyLjgzMjlDMzMuOTk1NSAxMi41OTU0IDM0LjEzMjMgMTIuMzg0NSAzNC4zMjUgMTIuMjMzNkMzNC41MTc3IDEyLjA4MjcgMzQuNzU1MyAxMi4wMDA1IDM1IDEyWiIgZmlsbD0id2hpdGUiPjwvcGF0aD4KPC9zdmc+"
+  ];
+
+  function AILogo({left, idx=0}) {
+    return (
+      <div style={{position:'absolute',left,top:0,width:52,height:52,borderRadius:'50%',
+        border:'2.5px solid #fff',overflow:'hidden',boxShadow:'0 1px 4px rgba(0,0,0,.25)'}}>
+        <img src={AI_LOGOS[idx]} style={{display:'block',width:'100%',height:'100%',objectFit:'cover'}} alt="AI"/>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{position:'absolute',inset:0,background:'#fff',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <SunriseTop/>
+      <div style={{flex:1,overflowY:'auto',padding:'24px 16px'}}>
+        {/* Headline */}
+        <div style={{textAlign:'center',marginBottom:20}}>
+          <div style={{fontWeight:700,fontSize:18,color:'#333',fontFamily:'Inter',marginBottom:8}}>
+            Verbinde deine KI für relevantere Treffer
+          </div>
+          <div style={{fontSize:14,color:'#757575',lineHeight:1.55,fontFamily:'Inter'}}>
+            Nutze wohnungsrelevanten Kontext aus deiner KI, damit Suchergebnisse besser zu deinem Lebensstil und deinen Prioritäten passen.
+          </div>
+        </div>
+
+        {/* Connection visual */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',
+          gap:20,marginBottom:24,padding:'10px'}}>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <div style={{width:72,height:72,borderRadius:'50%',border:'3px solid #00FED0',overflow:'hidden'}}>
+              <img src="assets/avatar.png" alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+            </div>
+            <span style={{fontSize:13,color:'#757575',fontFamily:'Inter'}}>Dein Profil</span>
+          </div>
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            {[0,1,2].map(i=>(
+              <div key={i} style={{width:8,height:8,borderRadius:'50%',
+                background:checked?'#00FED0':'#d0cecd',
+                transition:'background .3s ease',
+                transitionDelay:`${i*.05}s`}}/>
+            ))}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+            <div style={{position:'relative',width:104,height:52}}>
+              <AILogo left={0} idx={0}/>
+              <AILogo left={26} idx={1}/>
+              <AILogo left={52} idx={2}/>
+            </div>
+            <span style={{fontSize:13,color:'#757575',fontFamily:'Inter'}}>Dein KI-Assistent</span>
+          </div>
+        </div>
+
+        {/* Benefits */}
+        <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:28}}>
+          {benefits.map((b,i)=>(
+            <div key={i} style={{display:'flex',gap:12,padding:'12px 12px',
+              background:'#fafafa',borderRadius:12,alignItems:'flex-start'}}>
+              <div style={{width:22,height:22,borderRadius:'50%',background:'#00FED0',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                flexShrink:0,marginTop:1}}>
+                <CheckMark c="#333"/>
+              </div>
+              <div>
+                <div style={{fontWeight:700,fontSize:14,color:'#333',fontFamily:'Inter',marginBottom:2}}>{b.t}</div>
+                <div style={{fontSize:13,color:'#757575',fontFamily:'Inter',lineHeight:1.4}}>{b.d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Checkbox */}
+        <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:20}}>
+          <button onClick={()=>setChecked(!checked)}
+            style={{width:20,height:20,borderRadius:4,border:`2px solid #00FED0`,
+              background:checked?'#00FED0':'transparent',flexShrink:0,marginTop:2,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              cursor:'pointer',transition:'background .15s ease'}}>
+            {checked&&<CheckMark c="#333"/>}
+          </button>
+          <span style={{fontSize:13,color:'#333',lineHeight:1.55,fontFamily:'Inter'}}>
+            Ich stimme zu, dass ImmoScout24 relevante Informationen aus meinem KI-Assistenten für personalisierte Suchergebnisse verwenden darf.
+          </span>
+        </div>
+
+        {/* CTA buttons */}
+        <button onClick={()=>checked&&onConnect()}
+          style={{width:'100%',height:45,borderRadius:999,border:'none',
+            background:checked?'#333':'#999',
+            color:checked?'#fff':'#333',
+            fontWeight:700,fontSize:14,fontFamily:'Inter',
+            cursor:checked?'pointer':'not-allowed',
+            transition:'all .2s ease',marginBottom:4}}
+          onMouseEnter={e=>checked&&(e.currentTarget.style.background='#1a1a1a')}
+          onMouseLeave={e=>e.currentTarget.style.background=checked?'#333':'#999'}>
+          Jetzt verbinden
+        </button>
+        <button onClick={onLater}
+          style={{width:'100%',height:45,borderRadius:999,border:'none',
+            cursor:'pointer',background:'transparent',fontWeight:700,
+            fontSize:14,color:'#333',fontFamily:'Inter',transition:'background .2s'}}
+          onMouseEnter={e=>e.currentTarget.style.background='rgba(0,0,0,.04)'}
+          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          Später
+        </button>
+      </div>
+      <BottomNav activeTab="" onTab={()=>{}}/>
+    </div>
+  );
+}
+
+/* ─── SCREEN: SEARCHING / AI LOADING ─── */
+function ScreenSearching({ onComplete }) {
+  const STEPS = [
+    "Claude wurde erkannt",
+    "Arbeitsweg-Toleranz berechnet",
+    "Familienpläne wurden erkannt",
+    "Wohlfühlfaktoren erkannt",
+    "Zukünftige Bedürfnisse analysiert",
+    "Geräuschempfindlichkeit erkannt",
+    "Personalisierte Suche wird vorbereitet",
+  ];
+
+  const [completed, setCompleted] = useState([]);
+  const [current, setCurrent] = useState(0);
+  const [typed, setTyped] = useState('');
+  const [done, setDone] = useState(false);
+  const [showFinal, setShowFinal] = useState(false);
+
+  useEffect(()=>{
+    if(done||current>=STEPS.length)return;
+    const target = STEPS[current];
+    let i=0;
+    setTyped('');
+    const iv = setInterval(()=>{
+      if(i<target.length){
+        setTyped(target.slice(0,i+1));
+        i++;
+      } else {
+        clearInterval(iv);
+        setTimeout(()=>{
+          setCompleted(c=>[...c,current]);
+          setCurrent(s=>s+1);
+        }, 350);
+      }
+    }, Math.random()*12+20);
+    return()=>clearInterval(iv);
+  },[current,done]);
+
+  useEffect(()=>{
+    if(current>=STEPS.length&&!done){
+      setTimeout(()=>{ setDone(true); setTimeout(()=>setShowFinal(true),300); },600);
+    }
+  },[current]);
+
+  return (
+    <div style={{position:'absolute',inset:0,background:'#fff',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <SunriseTop/>
+      <div style={{flex:1,overflowY:'auto',padding:'24px 16px'}}>
+        {/* Title */}
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{fontWeight:700,fontSize:18,color:'#333',fontFamily:'Inter',marginBottom:8,transition:'all .5s ease'}}>
+            {showFinal?'Deine Suche kennt jetzt mehr von dir':'Wir verbinden deine KI'}
+          </div>
+          {!showFinal&&(
+            <div style={{fontSize:14,color:'#757575',lineHeight:1.55,fontFamily:'Inter'}}>
+              ImmoScout24 liest relevante Kontexte aus deinem KI-Assistenten.
+            </div>
+          )}
+        </div>
+
+        {/* Steps */}
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          {completed.map(idx=>(
+            <div key={idx} style={{display:'flex',gap:12,alignItems:'center',animation:'fadeInUp .3s ease-out'}}>
+              <HeyImmoIcon active={false} size={32}/>
+              <span className="shimmer-text" style={{fontSize:14,fontFamily:'Inter'}}>{STEPS[idx]}</span>
+            </div>
+          ))}
+          {!done&&current<STEPS.length&&(
+            <div style={{display:'flex',gap:12,alignItems:'center',animation:'fadeInUp .3s ease-out'}}>
+              <HeyImmoIcon active={true} size={32}/>
+              <span style={{fontSize:14,color:'#333',fontFamily:'Inter'}}>
+                {typed}<span style={{animation:'blink .8s step-end infinite'}}>|</span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Final */}
+        {showFinal&&(
+          <div style={{marginTop:28,display:'flex',flexDirection:'column',gap:16,alignItems:'center'}}>
+            <div style={{fontSize:15,color:'#333',lineHeight:1.6,fontFamily:'Inter',textAlign:'center',
+              animation:'fadeInUp .4s ease-out'}}>
+              Hi Chris, deine passenden Ergebnisse sind vorbereitet und passen nun{' '}
+              <strong>100% zu dir und deinem Lifestyle.</strong>
+            </div>
+            <button onClick={onComplete}
+              style={{borderRadius:999,background:'#333',border:'none',
+                padding:'12px 28px',color:'#fff',fontWeight:700,fontSize:14,
+                fontFamily:'Inter',cursor:'pointer',
+                animation:'fadeInUp .4s .15s ease-out both',
+                transition:'background .2s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='#1a1a1a'}
+              onMouseLeave={e=>e.currentTarget.style.background='#333'}>
+              Passende Ergebnisse ansehen →
+            </button>
+            <div style={{display:'flex',gap:16,animation:'fadeInUp .4s .3s ease-out both'}}>
+              <button style={{background:'none',border:'none',cursor:'pointer'}}><ThumbUp/></button>
+              <button style={{background:'none',border:'none',cursor:'pointer'}}><ThumbDown/></button>
+            </div>
+          </div>
+        )}
+      </div>
+      <BottomNav activeTab="" onTab={()=>{}}/>
+    </div>
+  );
+}
+
+/* ─── SCREEN: NEW HOME (Personalized) ─── */
+function ScreenNewHome({ onBack }) {
+  const [activeTab,setActiveTab] = useState('Lifestyle');
+  const [banner,setBanner] = useState(true);
+  const tabs = ['Alle','Nur Plus+','Neubau','Balkon','Nur hier','Garten','Lifestyle'];
+
+  const cards = [
+    {title:'Ruhige 3-Zimmer mit Balkon, Park & U-Bahn-Nähe',price:'1.785 €',area:'89 m²',rooms:'3 Zi.',addr:'Grünberger Str. 42, 10245 Berlin, Friedrichshain',badges:[{txt:'Neu',bg:'#333',c:'#fff'},{txt:'Von Privat',bg:'rgba(255,255,255,.95)',c:'#333'}],score:'100',tags:['Modern','Grün','Familienfreundlich'],g1:'#d4e8d4',g2:'#bed9be'},
+    {title:'Helles Altbau-Loft mit Gartennutzung & ruhiger Lage',price:'1.520 €',area:'76 m²',rooms:'2 Zi.',addr:'Kastanienallee 22, 10435 Berlin, Prenzlauer Berg',badges:[],score:'97',tags:['Ruhig','Grün','Altbau'],g1:'#e0d8d4',g2:'#d0c8be'},
+    {title:'Erstbezug: Familienfreundlich mit großem Kinderzimmer',price:'2.200 €',area:'102 m²',rooms:'4 Zi.',addr:'Schönhauser Allee 55, 10439 Berlin',badges:[{txt:'Neu',bg:'#333',c:'#fff'}],score:'94',tags:['Familienfreundlich','Modern'],g1:'#d4d8e8',g2:'#bec0d9'},
+  ];
+
+  return (
+    <div style={{position:'absolute',inset:0,background:'#fff',display:'flex',flexDirection:'column'}}>
+      {/* Search header */}
+      <div style={{padding:'32px 16px 0',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <button onClick={onBack} style={{background:'none',border:'none',cursor:'pointer',padding:0,flexShrink:0}}>
+            <BackArrow/>
+          </button>
+          <div style={{flex:1,background:'#f5f5f5',borderRadius:999,padding:'8px 20px',
+            display:'flex',gap:12,alignItems:'center'}}>
+            <SearchIcon c="#757575"/>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:14,color:'#333',fontFamily:'Inter'}}>Berlin</div>
+              <div style={{fontSize:12,color:'#757575',fontFamily:'Inter'}}>Wohnung</div>
+            </div>
+            <MicIcon c="#757575"/>
+            <div style={{width:1,height:24,background:'#e0e0e0'}}/>
+            <SlidersIcon c="#757575"/>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{borderBottom:'1px solid #e0e0e0',padding:'0 16px',
+        overflowX:'auto',display:'flex',gap:16,flexShrink:0,marginTop:4}}>
+        {tabs.map(t=>(
+          <button key={t} onClick={()=>setActiveTab(t)}
+            style={{background:'none',border:'none',cursor:'pointer',
+              padding:'10px 0',whiteSpace:'nowrap',
+              fontWeight:activeTab===t?700:400,
+              color:activeTab===t?'#333':'#757575',
+              fontSize:12,fontFamily:'Inter',
+              borderBottom:activeTab===t?'2px solid #333':'2px solid transparent',
+              display:'flex',alignItems:'center',gap:4}}>
+            {t==='Lifestyle'&&<HeyImmoIcon active={false} size={16}/>}
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Sort */}
+      <div style={{padding:'8px 16px',flexShrink:0,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{fontWeight:700,fontSize:12,color:'#333',fontFamily:'Inter'}}>Sortiert nach Lifestyle</span>
+      </div>
+
+      {/* Banner */}
+      {banner&&(
+        <div style={{margin:'0 16px 8px',background:'#fffde7',borderRadius:12,
+          padding:'10px 12px',display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+          <span style={{flex:1,fontSize:13,color:'#333',fontFamily:'Inter'}}>
+            <strong>150 Ergebnisse</strong> — Passend zu deinem Lifestyle
+          </span>
+          <button onClick={()=>setBanner(false)}
+            style={{background:'none',border:'none',cursor:'pointer',padding:0}}>
+            <XIcon s={18}/>
+          </button>
+        </div>
+      )}
+
+      {/* Cards */}
+      <div style={{flex:1,overflowY:'auto',padding:'0 16px 100px'}}>
+        {cards.map((card,i)=>(
+          <div key={i} style={{marginBottom:16,borderRadius:12,overflow:'hidden',
+            border:'1px solid #f0f0f0',cursor:'pointer',
+            transition:'transform .2s ease,box-shadow .2s ease'}}
+            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 6px 20px rgba(0,0,0,.1)';}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none';}}>
+            <div style={{position:'relative'}}>
+              <PropPhoto h={180} score={card.score} gradStart={card.g1} gradEnd={card.g2}/>
+              {card.badges.length>0&&(
+                <div style={{position:'absolute',top:10,left:10,display:'flex',gap:6}}>
+                  {card.badges.map((b,j)=>(
+                    <span key={j} style={{background:b.bg,color:b.c,fontSize:11,
+                      fontWeight:700,padding:'4px 10px',borderRadius:999,fontFamily:'Inter'}}>{b.txt}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{padding:'12px 14px'}}>
+              <div style={{fontWeight:700,fontSize:12,color:'#292526',fontFamily:'Inter',marginBottom:6}}>{card.title}</div>
+              <div style={{display:'flex',gap:6,marginBottom:5,alignItems:'center'}}>
+                <span style={{fontWeight:700,fontSize:13,color:'#292526',fontFamily:'Inter'}}>{card.price}</span>
+                <span style={{color:'#bbb'}}>·</span>
+                <span style={{fontSize:12,color:'#757575',fontFamily:'Inter'}}>{card.area}</span>
+                <span style={{color:'#bbb'}}>·</span>
+                <span style={{fontSize:12,color:'#757575',fontFamily:'Inter'}}>{card.rooms}</span>
+              </div>
+              <div style={{fontSize:12,color:'#757575',fontFamily:'Inter',marginBottom:8}}>{card.addr}</div>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                {card.tags.map(tag=>(
+                  <span key={tag} style={{border:'1px solid #00FED0',borderRadius:999,
+                    padding:'3px 10px',fontSize:12,color:'#333',fontFamily:'Inter'}}>{tag}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <BottomNav activeTab="suchen" onTab={()=>{}}/>
+    </div>
+  );
+}
+
+/* ─── SCREEN TRANSITION WRAPPER ─── */
+function Transition({ screenKey, dir, children }) {
+  const [anim, setAnim] = useState('');
+  const prevKeyRef = useRef(screenKey);
+
+  useEffect(()=>{
+    if(prevKeyRef.current===screenKey)return;
+    prevKeyRef.current=screenKey;
+  },[screenKey]);
+
+  return <>{children}</>;
+}
+
+/* ─── MAIN APP ─── */
+function App() {
+  // Persist screen across refreshes
+  const saved = (() => { try { return localStorage.getItem('is24_screen')||'home'; } catch(e){ return 'home'; } })();
+  const [screen, setScreen] = useState(saved);
+  const [prev, setPrev] = useState(null);
+  const [dir, setDir] = useState(1); // 1=forward, -1=back
+  const [busy, setBusy] = useState(false);
+  const [sheetPhase, setSheetPhase] = useState('closed'); // closed|loading|response
+
+  const ORDER = {home:0,search:1,connect:2,searching:3,'new-home':4};
+
+  function go(to, back=false) {
+    if(busy) return;
+    const d = back ? -1 : (ORDER[to]??1)>=(ORDER[screen]??0) ? 1 : -1;
+    setDir(d);
+    setPrev(screen);
+    setScreen(to);
+    setBusy(true);
+    try { localStorage.setItem('is24_screen', to); } catch(e){}
+    setTimeout(()=>{ setPrev(null); setBusy(false); }, 420);
+  }
+
+  function openSheet() {
+    setSheetPhase('loading');
+    setTimeout(()=>setSheetPhase('response'), 1500);
+  }
+
+  function getAnim(s, entering) {
+    if(entering) return dir>0 ? 'slide-in-right' : 'slide-in-left';
+    return dir>0 ? 'slide-out-left' : 'slide-out-right';
+  }
+
+  function wrap(s, el) {
+    const isCurrent = screen===s;
+    const isPrev = prev===s;
+    if(!isCurrent && !isPrev) return null;
+    const cl = isCurrent && prev ? getAnim(s,true) : isPrev ? getAnim(s,false) : '';
+    return (
+      <div key={s} className={cl}
+        style={{position:'absolute',inset:0,willChange:'transform',
+          zIndex:isCurrent&&prev?2:isPrev?1:2}}>
+        {el}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{width:'100%',height:'100%',position:'relative',overflow:'hidden'}}>
+
+      {wrap('home',
+        <ScreenHome
+          onResults={()=>go('search')}
+          onHeyImmo={openSheet}
+        />
+      )}
+
+      {wrap('search',
+        <ScreenManualSearch
+          onBack={()=>go('home',true)}
+          onImportLifestyle={()=>go('connect')}
+        />
+      )}
+
+      {wrap('connect',
+        <ScreenConnectionInfo
+          onBack={()=>go('home',true)}
+          onConnect={()=>go('searching')}
+          onLater={()=>go('home',true)}
+        />
+      )}
+
+      {wrap('searching',
+        <ScreenSearching
+          onComplete={()=>go('new-home')}
+        />
+      )}
+
+      {wrap('new-home',
+        <ScreenNewHome
+          onBack={()=>go('search',true)}
+        />
+      )}
+
+      {/* HeyImmo sheet over home */}
+      {screen==='home' && sheetPhase!=='closed' && (
+        <HeyImmoSheet
+          phase={sheetPhase}
+          onClose={()=>setSheetPhase('closed')}
+          onNavigate={()=>{ setSheetPhase('closed'); setTimeout(()=>go('connect'),100); }}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+<template id="__bundler_thumbnail">
+<svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+  <rect width="30" height="30" fill="#111"/>
+  <rect x="8" y="4" width="14" height="22" rx="3" fill="#fff"/>
+  <rect x="10" y="8" width="10" height="3" rx="1" fill="#00FED0"/>
+  <rect x="10" y="13" width="10" height="1.5" rx=".75" fill="#e0e0e0"/>
+  <rect x="10" y="16" width="7" height="1.5" rx=".75" fill="#e0e0e0"/>
+  <rect x="10" y="19" width="10" height="2.5" rx="1.25" fill="#333"/>
+</svg>
+</template>
+</body>
+</html>
